@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <enableReports>true</enableReports>
+    <label>Booking</label>
+    <nameField>
+        <displayFormat>BKG-{000000}</displayFormat>
+        <label>Booking Reference</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <pluralLabel>Bookings</pluralLabel>
+    <sharingModel>ControlledByParent</sharingModel>
+</CustomObject>
