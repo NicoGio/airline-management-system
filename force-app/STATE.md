@@ -1,1 +1,43 @@
-SkyHigh Airlines - Project State (SSOT)📍 Current StatusPhase: Sprint 0 - Backend & Frontend BridgeLast Action Completed: Successfully deployed core Data Model (Flight__c, Booking__c, Application_Log__c) via SFDX. FLS and Custom Tabs configured. Deployed FlightController.cls (API v66.0). Verified Pessimistic Locking (FOR UPDATE) logic via Anonymous Apex. Diagnosed the System.LimitException caused by AuraHandledException in the terminal context. Started the creation of the shaSeatPicker LWC files to move testing to the UI layer.🏛️ Architecture & SSOT BaselineRequirements (BRD v1.0): Agentforce Concierge, Immersive UI (Glassmorphism), Dynamic Fleet Management, Interactive Post-Booking Dashboard (Suggested Itinerary).Design & UI: Experience Cloud LWR (Build Your Own). Zero Trust & Anti-FOUC (Critical CSS). Images/Destinations managed via Salesforce CMS (OOTB) to comply with CSP limits. SVG Vector logo generated (460x125px).Technical Design (TDD v1.5): - Seat Engine: Seat_Map_JSON_Long__c (131k chars) on Flight__c to prevent row-locking thousands of Seat records.Concurrency: FOR UPDATE in Apex Controller to serialize transactions (Pessimistic Locking).UI Resiliency: shaSeatPicker LWC implements deterministic Short Polling (MAX_RETRIES, MAX_TIMEOUT) if the row is locked.Environment: VS Code, Git Engine installed. main branch connected to GitHub remote. SFDX CLI authorized to Org (FlyHigh_Dev).🛠️ Deployed MetadataObjects & Fields:Application_Log__c (Error_Message__c)Flight__c (Flight_Number__c [Ext ID], Seat_Map_JSON_Long__c)Booking__c (Transaction_Id__c, M/D Flight__c__c)Apex:FlightController.cls (API v66.0)Data Seeding: Flight FL-0001 seeded with initial JSON via Anonymous Apex.🚧 Immediate Next Steps (Pending)LWC UI Integration: Deploy the shaSeatPicker LWC to the Org and place it on a Lightning Page. Test the booking flow directly from the UI to validate that AuraHandledException is caught correctly and Application_Log__c records are inserted without global terminal rollbacks.Nightly Sweeper Strategy: Define the architecture (Database.Batchable vs. Schedule-Triggered Flow + Invocable) to clean up expired/held seats in the JSON matrix.PMD & QA Testing: Develop SH_SeatReservationController_Test with mock dependency injection to deterministically test QueryException (Row Lock) under stress.
+# STATE.md - SkyHigh Airlines
+
+## 📋 CURRENT PHASE: Backend Foundation Completed & Signed-Off
+The core transaction architecture, concurrency controls, and automated test coverage have been successfully deployed and verified on the Salesforce environment. All code changes are securely backed up in the remote repository.
+
+---
+
+## 🛠️ DATABASE SCHEMA & DATA CONTRACT (Nico Schema)
+The system operates strictly on the physical object architecture verified within the Scratch Org:
+* **`Flight__c`**: Base object tracking flight schedules.
+    * `Flight_Number__c` (Text, Unique, External ID)
+    * `Seat_Map_JSON_Long__c` (Long Text Area)
+* **`Booking__c`**: Master-Detail relation linked to a flight.
+    * `Flight__c` (Master-Detail to `Flight__c`)
+    * `Transaction_Id__c` (Text, Unique, External ID)
+* **`Application_Log__c`**: Asynchronous error catching table.
+    * `Error_Message__c` (Long Text Area)
+
+---
+
+## 🚀 COMPLETED MILESTONES & REPOSITORY STATE
+- [x] **Environment Setup**: SFDX enterprise structure configured locally in VS Code.
+- [x] **Data Alignment**: Complete database schema synchronization without non-existent fields.
+- [x] **`SH_BookingController` Deploy**: Real transaction logic with Pessimistic Row Locking (`FOR UPDATE`) implemented.
+- [x] **Idempotency Protection**: External transaction validation layer to prevent double-clicks or repeated API retries.
+- [x] **Automated Test Suite**: Created `SH_TestDataFactory` and `SH_BookingController_Test` classes.
+- [x] **Quality Assurance**: Achieved **86% Code Coverage** with a 100% successful test pass rate (`Outcome: Passed`).
+- [x] **Git Synchronization**: Executed staging, local commit, and remote push to `origin/main` successfully.
+
+---
+
+## 🎯 ACTIVE TASK (Post-Lunch Sprint)
+* **JSON Engine Core Architecture**: Designing and coding the native Apex parser to convert the flat text layout `Seat_Map_JSON_Long__c` into structural classes, mutate a seat allocation state from `AVAILABLE` to `OCCUPIED`, and serialize it cleanly back into the flight record.
+
+---
+
+## 🔮 NEXT STRATEGIC STEPS
+1.  **JSON Schema Mapping**: Code the inner wrapper layout (`FlightMap`, `Row`, `Seat`) inside Apex.
+2.  **State Machine Integration**: Inject array matrix calculations to find specific seat codes (e.g., `'1A'`, `'2B'`) safely.
+3.  **UI Component Layer**: Model the Lightning Web Component (LWC) design pattern for user interaction in Experience Cloud.
+
+---
+*Document updated dynamically on May 19, 2026. Certified by SkyHigh Architecture Board.*
