@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Arrival_Airport__c</fullName>
+    <deleteConstraint>Restrict</deleteConstraint>
+    <description>The destination airport where the flight lands (Arrival point).</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Select the destination airport for this flight.</inlineHelpText>
+    <label>Arrival Airport</label>
+    <referenceTo>Airport__c</referenceTo>
+    <relationshipLabel>Arriving Flights</relationshipLabel>
+    <relationshipName>Arriving_Flights</relationshipName>
+    <required>true</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>
