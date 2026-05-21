@@ -1,6 +1,7 @@
 /**
  * @description Automated Test Suite for SH_BookingController lifecycle operations.
- *              Validates Temporary Holds, Purchases, Soft-Deletes, Idempotency, and Observability.
+ *              Validates Temporary Holds, Purchases, Soft-Deletes, Idempotency, 
+ *              Overbooking Mitigation, Session Mismatch, and Observability.
  * @author Nico & A.E.G.I.S. Enterprise Architect
  */
 @IsTest
@@ -8,9 +9,24 @@ private class SH_BookingController_Test {
 
     @TestSetup
     static void makeData() {
-        // Create an active Flight record with a minimal initialized JSON Seat Map matrix
+        // Create master restrictive Airport records satisfying missing schema constraints
+        Airport__c departureAirport = new Airport__c(
+            IATA_Code__c = 'EZE',
+            City__c = 'Buenos Aires',
+            Country__c = 'Argentina'
+        );
+        Airport__c arrivalAirport = new Airport__c(
+            IATA_Code__c = 'MIA',
+            City__c = 'Miami',
+            Country__c = 'United States'
+        );
+        insert new List<Airport__c>{ departureAirport, arrivalAirport };
+
+        // Create an active Flight record with an initialized JSON Seat Map matrix and required master relations
         Flight__c testFlight = new Flight__c(
             Flight_Number__c = 'SH-2026',
+            Departure_Airport__c = departureAirport.Id,
+            Arrival_Airport__c = arrivalAirport.Id,
             Seat_Map_JSON_Long__c = '{"aircraftType":"Boeing 737","rows":[{"rowNumber":12,"cabinClass":"Economy","seats":[{"seatLetter":"A","status":"AVAILABLE","price":100.0,"heldBySession":null,"holdExpires":null},{"seatLetter":"B","status":"OCCUPIED","price":100.0,"heldBySession":null,"holdExpires":null}]}]}'
         );
         insert testFlight;
@@ -25,6 +41,7 @@ private class SH_BookingController_Test {
         Test.stopTest();
 
         System.assertEquals(true, response.isSuccess, 'The temporary seat lock operation must succeed.');
+        System.assertEquals(null, response.errorCode, 'The error code must remain null under happy path execution.');
         
         // Verify state mutation inside the JSON database field
         Flight__c updatedFlight = [SELECT Seat_Map_JSON_Long__c FROM Flight__c WHERE Id = :flight.Id];
@@ -97,14 +114,14 @@ private class SH_BookingController_Test {
         String sessionIdentifierNico = 'session_nico_01';
         String reusableTransactionId = 'TX-ID-REUSABLE-101';
 
-        // 1. First Cycle: Lock, Purchase and Logically Cancel the Booking
+        // First Cycle: Lock, Purchase and Logically Cancel the Booking
         SH_BookingController.lockSeat(flight.Id, '12A', sessionIdentifierNico);
         SH_BookingController.BookingResponse originalPurchase = SH_BookingController.confirmPurchase(
             flight.Id, '12A', sessionIdentifierNico, reusableTransactionId
         );
         SH_BookingController.cancelBooking(originalPurchase.bookingId, '12A');
 
-        // 2. Second Cycle: Re-lock the now AVAILABLE seat and attempt purchase with the REUSED Transaction ID
+        // Second Cycle: Re-lock the now AVAILABLE seat and attempt purchase with the REUSED Transaction ID
         SH_BookingController.lockSeat(flight.Id, '12A', sessionIdentifierNico);
 
         Test.startTest();
@@ -118,11 +135,66 @@ private class SH_BookingController_Test {
         System.assertNotEquals(null, secondaryPurchase.bookingId, 'A brand new persistent record Id must be successfully generated.');
         System.assertNotEquals(originalPurchase.bookingId, secondaryPurchase.bookingId, 'The new booking record must be an entirely separate persistent database row.');
 
-        // Verify both rows coexist cleanly in the database to satisfy the SSOT traceability rule
-        List<Booking__c> finalLedgerState = [SELECT Id, Status__c FROM Booking__c WHERE Transaction_Id__c = :reusableTransactionId ORDER BY CreatedDate ASC];
+        // FIX: Utilize a LIKE wildcard query to retrieve both the original mutated key and the new active key safely
+        String searchPattern = reusableTransactionId + '%';
+        List<Booking__c> finalLedgerState = [
+            SELECT Id, Status__c, Transaction_Id__c 
+            FROM Booking__c 
+            WHERE Transaction_Id__c LIKE :searchPattern 
+            ORDER BY CreatedDate ASC
+        ];
+        
         System.assertEquals(2, finalLedgerState.size(), 'The data ledger must preserve exactly two physical rows for full audit traceability.');
         System.assertEquals('Cancelled', finalLedgerState[0].Status__c, 'The initial transaction row must remain unmutated as Cancelled.');
         System.assertEquals('Confirmed', finalLedgerState[1].Status__c, 'The secondary transaction row must record successfully as Confirmed.');
+    }
+
+    @IsTest
+    static void testConfirmPurchaseFailsOnSessionMismatch() {
+        Flight__c flight = [SELECT Id FROM Flight__c LIMIT 1];
+        
+        // Nico locks the seat under his unique session identifier token
+        SH_BookingController.lockSeat(flight.Id, '12A', 'session_nico_01');
+
+        Test.startTest();
+        // A malicious session or rapid conflict session tries to hijack and confirm the purchase
+        SH_BookingController.BookingResponse response = SH_BookingController.confirmPurchase(
+            flight.Id, '12A', 'session_hijacker_99', 'TX-ID-HIJACK-ATTEMPT'
+        );
+        Test.stopTest();
+
+        // Verify defensive boundaries mapping interceptors
+        System.assertEquals(false, response.isSuccess, 'The purchase operation must fail if the checking session identifier mismatches.');
+        System.assertEquals('HOLD_EXPIRED', response.errorCode, 'The validation response envelope must return the HOLD_EXPIRED security code.');
+    }
+
+    @IsTest
+    static void testConfirmPurchaseFailsWhenOverbooked() {
+        Flight__c flight = [SELECT Id FROM Flight__c LIMIT 1];
+        
+        // Mock overbooking limit by inserting persistent active records matching the threshold boundary
+        List<Booking__c> overbookPayload = new List<Booking__c>();
+        for (Integer i = 0; i < 190; i++) {
+            overbookPayload.add(new Booking__c(
+                Flight__c = flight.Id,
+                Transaction_Id__c = 'TX-OVERBOOK-MOCK-' + i,
+                Status__c = 'Confirmed'
+            ));
+        }
+        insert overbookPayload;
+
+        // Stage a seat hold lock for the evaluation process execution
+        SH_BookingController.lockSeat(flight.Id, '12A', 'session_nico_01');
+
+        Test.startTest();
+        SH_BookingController.BookingResponse response = SH_BookingController.confirmPurchase(
+            flight.Id, '12A', 'session_nico_01', 'TX-ID-OVERBOOK-ATTEMPT'
+        );
+        Test.stopTest();
+
+        // Enforce Large Data Volume capacity rule assertions
+        System.assertEquals(false, response.isSuccess, 'The purchase confirmation layer must reject execution if aggregate results violate safety factors.');
+        System.assertEquals('FLIGHT_OVERBOOKED', response.errorCode, 'The verification layer must return an explicit FLIGHT_OVERBOOKED code.');
     }
 
     @IsTest
@@ -131,7 +203,7 @@ private class SH_BookingController_Test {
         Id fakeFlightId = 'a02000000000001AAA'; 
 
         Test.startTest();
-        SH_BookingController.BookingResponse errorResponse = SH_BookingController.lockSeat(fakeFlightId, '12A', 'session_err_01');
+        SH_BookingController.BookingResponse errorResponse = SH_BookingController.lockSeat(fakeFlightId, '12A', 'session_nico_01');
         Test.stopTest();
 
         // Verify Zero Trust exception wrapping structures

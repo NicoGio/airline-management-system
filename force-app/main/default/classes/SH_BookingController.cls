@@ -1,12 +1,14 @@
 /**
  * @description Core controller for SkyHigh Airlines seat inventory lifecycle.
  *              Handles Temporary Locking, Purchase Confirmation, and Cancellations.
- *              Enforces Pessimistic Locking, Idempotency, and Soft-Delete Compliance.
+ *              Enforces Pessimistic Locking, Idempotency, and Overbooking Protection.
  * @author Nico & A.E.G.I.S. Enterprise Architect
  */
 public with sharing class SH_BookingController {
 
     private static final Integer HOLD_DURATION_MINUTES = 10;
+    private static final Decimal MAX_OVERBOOKING_FACTOR = 1.05; 
+    private static final Integer MAX_AIRCRAFT_SEAT_CAPACITY = 180; 
 
     // =========================================================================
     // APEX JSON ENGINE WRAPPERS (Strongly Typed Schema)
@@ -55,9 +57,9 @@ public with sharing class SH_BookingController {
         }
         
         public BookingResponse(Boolean isSuccess, String message, String errorCode) {
-            this.isSuccess = isSuccess;
             this.errorCode = errorCode;
             this.message = message;
+            this.isSuccess = isSuccess;
         }
 
         public BookingResponse(Boolean isSuccess, String message, Id bookingId) {
@@ -125,7 +127,7 @@ public with sharing class SH_BookingController {
 
     /**
      * @description Transitions a seat from HELD to OCCUPIED and updates the physical Booking__c status.
-     *              Enforces cancellation-aware idempotency check.
+     *              Enforces overbooking mitigation and strict race-condition checks.
      */
     @AuraEnabled
     public static BookingResponse confirmPurchase(Id flightId, String seatCode, String sessionIdentifier, String transactionId) {
@@ -142,7 +144,28 @@ public with sharing class SH_BookingController {
             return new BookingResponse(true, 'Purchase already completed successfully.', existingBookings[0].Id);
         }
 
+        // Overbooking Mitigation Check using AggregateResult for scalability (LDV Compliance)
+        List<AggregateResult> groupedResults = [
+            SELECT COUNT(Id) activeCount 
+            FROM Booking__c 
+            WHERE Flight__c = :flightId 
+              AND Status__c = 'Confirmed'
+        ];
+        
+        Integer currentConfirmedCount = 0;
+        if (groupedResults != null && !groupedResults.isEmpty() && groupedResults[0].get('activeCount') != null) {
+            currentConfirmedCount = (Integer) groupedResults[0].get('activeCount');
+        }
+
+        if (currentConfirmedCount >= (MAX_AIRCRAFT_SEAT_CAPACITY * MAX_OVERBOOKING_FACTOR)) {
+            return new BookingResponse(false, 'Flight has reached its maximum safety overbooking capacity limit.', 'FLIGHT_OVERBOOKED');
+        }
+
         ParsedSeat seatInfo = parseSeatCode(seatCode);
+        if (!seatInfo.isValid) {
+            return new BookingResponse(false, 'Invalid seat format specified.', 'INVALID_SEAT_FORMAT');
+        }
+
         Savepoint sp = Database.setSavepoint();
 
         try {
@@ -150,8 +173,9 @@ public with sharing class SH_BookingController {
             SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(flight.Seat_Map_JSON_Long__c, SeatMapWrapper.class);
             SeatDetailWrapper targetSeat = findSeatNode(cabinMap, seatInfo.rowNumber, seatInfo.seatLetter);
 
+            // Strict Race Condition Cross-Check Validation
             if (targetSeat == null || targetSeat.status != 'HELD' || targetSeat.heldBySession != sessionIdentifier) {
-                return new BookingResponse(false, 'Seat hold has expired or session mismatch. Please try again.', 'HOLD_EXPIRED');
+                return new BookingResponse(false, 'Seat hold has expired or was secured by another checkout session.', 'HOLD_EXPIRED');
             }
 
             // Transition Node to Final State
@@ -162,7 +186,7 @@ public with sharing class SH_BookingController {
             flight.Seat_Map_JSON_Long__c = JSON.serialize(cabinMap);
             update flight;
 
-            // Secure Audit Trail with 'Confirmed' Picklist state
+            // Secure Audit Trail with 'Confirmed' state
             Booking__c newBooking = new Booking__c(
                 Flight__c = flightId,
                 Transaction_Id__c = transactionId,
@@ -185,13 +209,14 @@ public with sharing class SH_BookingController {
 
     /**
      * @description Reverts an OCCUPIED seat back to AVAILABLE and flags the Booking as 'Cancelled'.
+     *              Appends a cancellation suffix to Transaction_Id__c to free up platform unique index constraints.
      */
     @AuraEnabled
     public static BookingResponse cancelBooking(Id bookingId, String seatCode) {
         Savepoint sp = Database.setSavepoint();
         try {
             // Enforce restrictive query for LDV compliance
-            Booking__c targetBooking = [SELECT Id, Flight__c, Status__c FROM Booking__c WHERE Id = :bookingId LIMIT 1];
+            Booking__c targetBooking = [SELECT Id, Flight__c, Status__c, Transaction_Id__c FROM Booking__c WHERE Id = :bookingId LIMIT 1];
             ParsedSeat seatInfo = parseSeatCode(seatCode);
 
             Flight__c flight = [SELECT Id, Seat_Map_JSON_Long__c FROM Flight__c WHERE Id = :targetBooking.Flight__c FOR UPDATE];
@@ -208,7 +233,10 @@ public with sharing class SH_BookingController {
                 update flight;
             }
 
-            // Soft Delete Execution: Mutate record status to preserve immutable history
+            // Soft Delete Execution: Mutate record status and release unique constraint slot safely
+            if (String.isNotBlank(targetBooking.Transaction_Id__c) && !targetBooking.Transaction_Id__c.contains('-CNCL')) {
+                targetBooking.Transaction_Id__c = targetBooking.Transaction_Id__c + '-CNCL';
+            }
             targetBooking.Status__c = 'Cancelled';
             update targetBooking;
 
