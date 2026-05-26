@@ -1,49 +1,36 @@
 /**
- * @description Core controller for SkyHigh Airlines seat inventory lifecycle.
- *              Handles Temporary Locking, Purchase Confirmation, and Cancellations.
- *              Enforces Pessimistic Locking, Idempotency, and Overbooking Protection.
- * @author Nico & A.E.G.I.S. Enterprise Architect
+ * @description Core controller for SkyHigh Air seat inventory lifecycle.
+ * Refactored for Segment-based itinerary management. Now targets Flight_Segment__c 
+ * for JSON manipulations to ensure LDV scalability and prevent Asset locking contention.
+ * @author A.E.G.I.S. Enterprise Architect
  */
 public with sharing class SH_BookingController {
 
     private static final Integer HOLD_DURATION_MINUTES = 10;
-    private static final Decimal MAX_OVERBOOKING_FACTOR = 1.05; 
-    private static final Integer MAX_AIRCRAFT_SEAT_CAPACITY = 180; 
 
     // =========================================================================
-    // APEX JSON ENGINE WRAPPERS (Strongly Typed Schema)
+    // WRAPPERS
     // =========================================================================
-
     public class SeatMapWrapper {
-        public String aircraftType { get; set; }
-        public List<RowWrapper> rows { get; set; }
-
-        public SeatMapWrapper() {
-            this.rows = new List<RowWrapper>();
-        }
+        @AuraEnabled public String aircraftType { get; set; }
+        @AuraEnabled public List<RowWrapper> rows { get; set; }
+        public SeatMapWrapper() { this.rows = new List<RowWrapper>(); }
     }
 
     public class RowWrapper {
-        public Integer rowNumber { get; set; }
-        public String cabinClass { get; set; } 
-        public List<SeatDetailWrapper> seats { get; set; }
-
-        public RowWrapper() {
-            this.seats = new List<SeatDetailWrapper>();
-        }
+        @AuraEnabled public Integer rowNumber { get; set; }
+        @AuraEnabled public String cabinClass { get; set; } 
+        @AuraEnabled public List<SeatDetailWrapper> seats { get; set; }
+        public RowWrapper() { this.seats = new List<SeatDetailWrapper>(); }
     }
 
     public class SeatDetailWrapper {
-        public String seatLetter { get; set; }
-        public String status { get; set; } // AVAILABLE, OCCUPIED, HELD
-        public Decimal price { get; set; }
-        public String heldBySession { get; set; } 
-        public Datetime holdExpires { get; set; } 
+        @AuraEnabled public String seatLetter { get; set; }
+        @AuraEnabled public String status { get; set; } 
+        @AuraEnabled public Decimal price { get; set; }
+        @AuraEnabled public String heldBySession { get; set; } 
+        @AuraEnabled public Datetime holdExpires { get; set; } 
     }
-
-    // =========================================================================
-    // TRANSACTION RESPONSE ENVELOPE (UI Resilience)
-    // =========================================================================
 
     public class BookingResponse {
         @AuraEnabled public Boolean isSuccess { get; set; }
@@ -70,30 +57,55 @@ public with sharing class SH_BookingController {
     }
 
     // =========================================================================
-    // BUSINESS PROCESS 1: TEMPORARY LOCKING (PRE-RESERVA)
+    // BUSINESS PROCESS: QUERIES (Read-Only / Cacheable)
     // =========================================================================
 
     /**
-     * @description Places a temporary hold on a seat for a restricted timeframe.
+     * @description Retrieves the current seat map status for a specific flight segment.
+     * Uses a List query pattern to prevent automatic QueryExceptions if the segment is not found,
+     * allowing for graceful error handling via AuraHandledException.
+     * @param segmentId The Id of the Flight_Segment__c to query.
+     * @return SeatMapWrapper The deserialized cabin configuration.
      */
-    @AuraEnabled
-    public static BookingResponse lockSeat(Id flightId, String seatCode, String sessionIdentifier) {
-        ParsedSeat seatInfo = parseSeatCode(seatCode);
-        if (!seatInfo.isValid) {
-            return new BookingResponse(false, 'Invalid seat format specified.', 'INVALID_SEAT_FORMAT');
+    @AuraEnabled(cacheable=true)
+    public static SeatMapWrapper getSeatMapBySegment(Id segmentId) {
+        List<Flight_Segment__c> segments = [
+            SELECT Seat_Map_JSON__c 
+            FROM Flight_Segment__c 
+            WHERE Id = :segmentId 
+            LIMIT 1
+        ];
+        
+        if (segments.isEmpty() || String.isBlank(segments[0].Seat_Map_JSON__c)) {
+            throw new AuraHandledException('Seat map not found for this segment.');
         }
+        
+        return (SeatMapWrapper) JSON.deserialize(segments[0].Seat_Map_JSON__c, SeatMapWrapper.class);
+    }
+
+    // =========================================================================
+    // BUSINESS PROCESS: TEMPORARY LOCKING
+    // =========================================================================
+
+    @AuraEnabled
+    public static BookingResponse lockSeat(Id segmentId, String seatCode, String sessionIdentifier) {
+        ParsedSeat seatInfo = parseSeatCode(seatCode);
+        if (!seatInfo.isValid) return new BookingResponse(false, 'Invalid seat format.', 'INVALID_SEAT_FORMAT');
 
         Savepoint sp = Database.setSavepoint();
         try {
-            Flight__c flight = [SELECT Id, Seat_Map_JSON_Long__c FROM Flight__c WHERE Id = :flightId FOR UPDATE];
-            SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(flight.Seat_Map_JSON_Long__c, SeatMapWrapper.class);
+            Flight_Segment__c segment = [
+                SELECT Id, Seat_Map_JSON__c 
+                FROM Flight_Segment__c 
+                WHERE Id = :segmentId 
+                FOR UPDATE
+            ];
+            
+            SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(segment.Seat_Map_JSON__c, SeatMapWrapper.class);
             SeatDetailWrapper targetSeat = findSeatNode(cabinMap, seatInfo.rowNumber, seatInfo.seatLetter);
 
-            if (targetSeat == null) {
-                return new BookingResponse(false, 'The requested seat does not exist.', 'SEAT_NOT_FOUND');
-            }
+            if (targetSeat == null) return new BookingResponse(false, 'Seat does not exist.', 'SEAT_NOT_FOUND');
 
-            // Lazy Evaluation of expired holds
             if (targetSeat.status == 'HELD' && targetSeat.holdExpires != null && targetSeat.holdExpires < System.now()) {
                 targetSeat.status = 'AVAILABLE';
                 targetSeat.heldBySession = null;
@@ -101,156 +113,116 @@ public with sharing class SH_BookingController {
             }
 
             if (targetSeat.status != 'AVAILABLE') {
-                return new BookingResponse(false, 'Seat is currently locked or occupied by another traveler.', 'SEAT_UNAVAILABLE');
+                return new BookingResponse(false, 'Seat unavailable.', 'SEAT_UNAVAILABLE');
             }
 
-            // Apply Temporary Hold
             targetSeat.status = 'HELD';
             targetSeat.heldBySession = sessionIdentifier;
             targetSeat.holdExpires = System.now().addMinutes(HOLD_DURATION_MINUTES);
 
-            flight.Seat_Map_JSON_Long__c = JSON.serialize(cabinMap);
-            update flight;
+            segment.Seat_Map_JSON__c = JSON.serialize(cabinMap);
+            update segment; 
 
-            return new BookingResponse(true, 'Seat successfully locked for ' + HOLD_DURATION_MINUTES + ' minutes.');
+            return new BookingResponse(true, 'Seat locked.');
 
         } catch (Exception e) {
             Database.rollback(sp);
-            logError('LOCK_SEAT_ERROR | Flight: ' + flightId + ' | Seat: ' + seatCode + ' | ' + e.getMessage());
-            return new BookingResponse(false, 'Could not secure temporary lock.', 'SERVER_ERROR');
+            logError('LOCK_SEAT_ERROR | Segment: ' + segmentId + ' | ' + e.getMessage());
+            return new BookingResponse(false, 'Locking failed.', 'SERVER_ERROR');
         }
     }
 
     // =========================================================================
-    // BUSINESS PROCESS 2: PURCHASE CONFIRMATION (COMPRA DEFINITIVA)
+    // BUSINESS PROCESS: PURCHASE CONFIRMATION
     // =========================================================================
 
-    /**
-     * @description Transitions a seat from HELD to OCCUPIED and updates the physical Booking__c status.
-     *              Enforces overbooking mitigation and strict race-condition checks.
-     */
     @AuraEnabled
-    public static BookingResponse confirmPurchase(Id flightId, String seatCode, String sessionIdentifier, String transactionId) {
-        // Idempotency Check: Filter out active transactions, ignoring logically cancelled audit records
-        List<Booking__c> existingBookings = [
-            SELECT Id 
-            FROM Booking__c 
-            WHERE Transaction_Id__c = :transactionId 
-              AND Status__c != 'Cancelled' 
-            LIMIT 1
-        ];
-        
-        if (!existingBookings.isEmpty()) {
-            return new BookingResponse(true, 'Purchase already completed successfully.', existingBookings[0].Id);
-        }
-
-        // Overbooking Mitigation Check using AggregateResult for scalability (LDV Compliance)
-        List<AggregateResult> groupedResults = [
-            SELECT COUNT(Id) activeCount 
-            FROM Booking__c 
-            WHERE Flight__c = :flightId 
-              AND Status__c = 'Confirmed'
-        ];
-        
-        Integer currentConfirmedCount = 0;
-        if (groupedResults != null && !groupedResults.isEmpty() && groupedResults[0].get('activeCount') != null) {
-            currentConfirmedCount = (Integer) groupedResults[0].get('activeCount');
-        }
-
-        if (currentConfirmedCount >= (MAX_AIRCRAFT_SEAT_CAPACITY * MAX_OVERBOOKING_FACTOR)) {
-            return new BookingResponse(false, 'Flight has reached its maximum safety overbooking capacity limit.', 'FLIGHT_OVERBOOKED');
-        }
-
-        ParsedSeat seatInfo = parseSeatCode(seatCode);
-        if (!seatInfo.isValid) {
-            return new BookingResponse(false, 'Invalid seat format specified.', 'INVALID_SEAT_FORMAT');
-        }
+    public static BookingResponse confirmPurchase(Id segmentId, String seatCode, String sessionIdentifier, String transactionId) {
+        List<Booking__c> existingBookings = [SELECT Id FROM Booking__c WHERE Transaction_Id__c = :transactionId AND Status__c != 'Cancelled' LIMIT 1];
+        if (!existingBookings.isEmpty()) return new BookingResponse(true, 'Already completed.', existingBookings[0].Id);
 
         Savepoint sp = Database.setSavepoint();
-
         try {
-            Flight__c flight = [SELECT Id, Seat_Map_JSON_Long__c FROM Flight__c WHERE Id = :flightId FOR UPDATE];
-            SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(flight.Seat_Map_JSON_Long__c, SeatMapWrapper.class);
-            SeatDetailWrapper targetSeat = findSeatNode(cabinMap, seatInfo.rowNumber, seatInfo.seatLetter);
+            Flight_Segment__c segment = [
+                SELECT Id, Seat_Map_JSON__c, Flight__c 
+                FROM Flight_Segment__c 
+                WHERE Id = :segmentId 
+                FOR UPDATE
+            ];
+            
+            SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(segment.Seat_Map_JSON__c, SeatMapWrapper.class);
+            SeatDetailWrapper targetSeat = findSeatNode(cabinMap, parseSeatCode(seatCode).rowNumber, parseSeatCode(seatCode).seatLetter);
 
-            // Strict Race Condition Cross-Check Validation
             if (targetSeat == null || targetSeat.status != 'HELD' || targetSeat.heldBySession != sessionIdentifier) {
-                return new BookingResponse(false, 'Seat hold has expired or was secured by another checkout session.', 'HOLD_EXPIRED');
+                return new BookingResponse(false, 'Hold expired.', 'HOLD_EXPIRED');
             }
 
-            // Transition Node to Final State
             targetSeat.status = 'OCCUPIED';
             targetSeat.heldBySession = null;
             targetSeat.holdExpires = null;
 
-            flight.Seat_Map_JSON_Long__c = JSON.serialize(cabinMap);
-            update flight;
+            segment.Seat_Map_JSON__c = JSON.serialize(cabinMap);
+            update segment;
 
-            // Secure Audit Trail with 'Confirmed' state
             Booking__c newBooking = new Booking__c(
-                Flight__c = flightId,
+                Flight__c = segment.Flight__c,
                 Transaction_Id__c = transactionId,
                 Status__c = 'Confirmed'
             );
             insert newBooking;
 
-            return new BookingResponse(true, 'Ticket successfully issued.', newBooking.Id);
+            return new BookingResponse(true, 'Issued.', newBooking.Id);
 
         } catch (Exception e) {
             Database.rollback(sp);
-            logError('CONFIRM_PURCHASE_ERROR | Transaction: ' + transactionId + ' | ' + e.getMessage());
-            return new BookingResponse(false, 'Transaction failed. Financial ledger rolled back safely.', 'SERVER_ERROR');
+            logError('CONFIRM_PURCHASE_ERROR | Segment: ' + segmentId + ' | ' + e.getMessage());
+            return new BookingResponse(false, 'Transaction failed.', 'SERVER_ERROR');
         }
     }
 
     // =========================================================================
-    // BUSINESS PROCESS 3: CANCELLATION (BORRADO LÓGICO / AUDITABLE)
+    // BUSINESS PROCESS: CANCELLATION
     // =========================================================================
 
-    /**
-     * @description Reverts an OCCUPIED seat back to AVAILABLE and flags the Booking as 'Cancelled'.
-     *              Appends a cancellation suffix to Transaction_Id__c to free up platform unique index constraints.
-     */
     @AuraEnabled
-    public static BookingResponse cancelBooking(Id bookingId, String seatCode) {
+    public static BookingResponse cancelBooking(Id bookingId, Id segmentId, String seatCode) {
         Savepoint sp = Database.setSavepoint();
         try {
-            // Enforce restrictive query for LDV compliance
-            Booking__c targetBooking = [SELECT Id, Flight__c, Status__c, Transaction_Id__c FROM Booking__c WHERE Id = :bookingId LIMIT 1];
-            ParsedSeat seatInfo = parseSeatCode(seatCode);
+            Booking__c booking = [SELECT Id, Status__c, Transaction_Id__c FROM Booking__c WHERE Id = :bookingId FOR UPDATE];
+            if (booking.Status__c == 'Cancelled') return new BookingResponse(false, 'Already cancelled.', 'ALREADY_CANCELLED');
 
-            Flight__c flight = [SELECT Id, Seat_Map_JSON_Long__c FROM Flight__c WHERE Id = :targetBooking.Flight__c FOR UPDATE];
-            SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(flight.Seat_Map_JSON_Long__c, SeatMapWrapper.class);
+            Flight_Segment__c segment = [
+                SELECT Id, Seat_Map_JSON__c 
+                FROM Flight_Segment__c 
+                WHERE Id = :segmentId 
+                FOR UPDATE
+            ];
+            
+            ParsedSeat seatInfo = parseSeatCode(seatCode);
+            SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(segment.Seat_Map_JSON__c, SeatMapWrapper.class);
             SeatDetailWrapper targetSeat = findSeatNode(cabinMap, seatInfo.rowNumber, seatInfo.seatLetter);
 
-            // Revert Seat Inventory state in JSON matrix
             if (targetSeat != null && targetSeat.status == 'OCCUPIED') {
                 targetSeat.status = 'AVAILABLE';
-                targetSeat.heldBySession = null;
-                targetSeat.holdExpires = null;
-
-                flight.Seat_Map_JSON_Long__c = JSON.serialize(cabinMap);
-                update flight;
+                segment.Seat_Map_JSON__c = JSON.serialize(cabinMap);
+                update segment;
             }
 
-            // Soft Delete Execution: Mutate record status and release unique constraint slot safely
-            if (String.isNotBlank(targetBooking.Transaction_Id__c) && !targetBooking.Transaction_Id__c.contains('-CNCL')) {
-                targetBooking.Transaction_Id__c = targetBooking.Transaction_Id__c + '-CNCL';
-            }
-            targetBooking.Status__c = 'Cancelled';
-            update targetBooking;
+            booking.Status__c = 'Cancelled';
+            booking.Transaction_Id__c += '-CNCL';
+            update booking;
 
-            return new BookingResponse(true, 'Booking cancelled successfully. Seat inventory released.');
+            return new BookingResponse(true, 'Booking released.');
 
         } catch (Exception e) {
             Database.rollback(sp);
-            logError('CANCELLATION_ERROR | Booking: ' + bookingId + ' | ' + e.getMessage());
-            return new BookingResponse(false, 'Cancellation processing failed.', 'SERVER_ERROR');
+            logError('CANCEL_BOOKING_ERROR | Booking: ' + bookingId + ' | ' + e.getMessage());
+            return new BookingResponse(false, 'Cancellation failed.', 'SERVER_ERROR');
         }
     }
 
     // =========================================================================
-    // HELPER CORE UTILITIES
+    // HELPERS
     // =========================================================================
 
     private class ParsedSeat {
@@ -261,9 +233,7 @@ public with sharing class SH_BookingController {
 
     private static ParsedSeat parseSeatCode(String seatCode) {
         ParsedSeat result = new ParsedSeat();
-        if (String.isBlank(seatCode)) {
-            return result;
-        }
+        if (String.isBlank(seatCode)) return result;
         System.Pattern seatPattern = System.Pattern.compile('(\\d+)([A-Z])');
         System.Matcher seatMatcher = seatPattern.matcher(seatCode.toUpperCase());
         if (seatMatcher.matches()) {
@@ -278,9 +248,7 @@ public with sharing class SH_BookingController {
         for (RowWrapper row : cabinMap.rows) {
             if (row.rowNumber == rowNum) {
                 for (SeatDetailWrapper seat : row.seats) {
-                    if (seat.seatLetter.equalsIgnoreCase(letter)) {
-                        return seat;
-                    }
+                    if (seat.seatLetter.equalsIgnoreCase(letter)) return seat;
                 }
             }
         }

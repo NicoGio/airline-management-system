@@ -2,12 +2,11 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>IATA_Code__c</fullName>
     <caseSensitive>false</caseSensitive>
-    <description>Unique 3-letter IATA code representing the airport (e.g., EZE, MIA, JFK).</description>
+    <description>Standard 3-letter IATA code representing the airport. Used as a unique external ID for integrations.</description>
     <externalId>true</externalId>
-    <inlineHelpText>Enter the official 3-letter airport code.</inlineHelpText>
     <label>IATA Code</label>
     <length>3</length>
-    <required>true</required>
+    <required>false</required>
     <trackHistory>true</trackHistory>
     <trackTrending>false</trackTrending>
     <type>Text</type>

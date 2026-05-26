@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Asset__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Lookup to the physical aircraft (Asset) assigned to operate this specific leg.</description>
+    <label>Asset</label>
+    <referenceTo>Asset</referenceTo>
+    <relationshipLabel>Flight Segments</relationshipLabel>
+    <relationshipName>Flight_Segments</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  @description Metadata configuration for the primary SkyHigh Air hero concierge interface.
+               Enforces target visibility boundaries for LWR Experience Cloud sites.
+  @author Nico & A.E.G.I.S. Enterprise Architect
+-->
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>SkyHigh Air Hero Concierge</masterLabel>
+    <description>Immersive landing framework that integrates with Agentforce event streams.</description>
+    <targets>
+        <target>lightningCommunity__Page</target>
+        <target>lightningCommunity__Default</target>
+    </targets>
+</LightningComponentBundle>

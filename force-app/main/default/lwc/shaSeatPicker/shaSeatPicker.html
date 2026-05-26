@@ -1,0 +1,31 @@
+<template>
+    <div class="sha-glass-panel slds-p-around_medium">
+        
+        <template if:false={seatMap}>
+            <lightning-spinner alternative-text="Loading Seat Map"></lightning-spinner>
+        </template>
+
+        <template if:true={seatMap}>
+            <div class="slds-scrollable_x">
+                <svg width="600" height="400" viewBox="0 0 600 400">
+                    <template for:each={seatMap.rows} for:item="row">
+                        <template for:each={row.seats} for:item="seat" for:index="index">
+                            <rect 
+                                key={seat.id}
+                                x={seat.x} 
+                                y={seat.y} 
+                                width="30" 
+                                height="30" 
+                                rx="5"
+                                data-seat-code={seat.code}
+                                class={seat.statusClass}
+                                onclick={handleSeatClick}>
+                            </rect>
+                        </template>
+                    </template>
+                </svg>
+            </div>
+        </template>
+
+    </div>
+</template>

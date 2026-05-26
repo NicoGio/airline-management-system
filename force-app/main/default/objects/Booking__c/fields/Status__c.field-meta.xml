@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Status__c</fullName>
-    <businessStatus>Active</businessStatus>
-    <description>Represents the transactional lifecycle of the seat booking for financial and compliance audit trails.</description>
-    <externalId>false</externalId>
+    <description>Current status of the passenger&apos;s booking.</description>
     <label>Status</label>
-    <required>true</required>
+    <required>false</required>
     <trackTrending>false</trackTrending>
     <type>Picklist</type>
     <valueSet>
@@ -13,19 +11,20 @@
         <valueSetDefinition>
             <sorted>false</sorted>
             <value>
-                <fullName>Pending</fullName>
-                <default>true</default>
-                <label>Pending</label>
-            </value>
-            <value>
                 <fullName>Confirmed</fullName>
-                <default>false</default>
+                <default>true</default>
                 <label>Confirmed</label>
             </value>
             <value>
                 <fullName>Cancelled</fullName>
                 <default>false</default>
                 <label>Cancelled</label>
+            </value>
+            <value>
+                <fullName>Pending</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>Pending</label>
             </value>
         </valueSetDefinition>
     </valueSet>

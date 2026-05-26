@@ -3,7 +3,6 @@
     <fullName>Is_Active__c</fullName>
     <defaultValue>true</defaultValue>
     <description>Indicates if the airport is currently operating flights for SkyHigh.</description>
-    <externalId>false</externalId>
     <label>Is Active</label>
     <trackHistory>true</trackHistory>
     <trackTrending>false</trackTrending>

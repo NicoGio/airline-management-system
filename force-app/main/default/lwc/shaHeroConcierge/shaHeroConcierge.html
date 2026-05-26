@@ -1,0 +1,62 @@
+<!-- 
+  @description Primary HTML template for SkyHigh Air hero concierge.
+               Displays dynamic background and the Agentforce integration container.
+  @author Nico & A.E.G.I.S. Enterprise Architect
+-->
+<template>
+    <!-- Main Immersive Viewport mapped to our Head Markup CSS -->
+    <div class="sha-hero-viewport slds-is-relative slds-grid slds-wrap slds-grid_align-center slds-grid_vertical-align-center slds-p-around_large">
+        
+        <!-- Default Landing / Agentforce Chat Area -->
+        <div class="slds-col slds-size_1-of-1 slds-large-size_6-of-12 slds-p-around_medium">
+            <div class="sha-glass-panel slds-p-around_large">
+                <h1 class="slds-text-heading_large slds-text-color_inverse slds-m-bottom_small" style="font-weight: bold;">
+                    Where is your next story?
+                </h1>
+                <p class="slds-text-body_regular slds-text-color_inverse slds-m-bottom_medium">
+                    Let our AI travel concierge find the perfect destination based on the experience you want.
+                </p>
+                <!-- Agentforce embedded component or prompt placeholder goes here -->
+            </div>
+        </div>
+
+        <!-- Dynamic Flight Card Modal (Rendered asynchronously via Platform Event payload) -->
+        <template if:true={isFlightFound}>
+            <div class="slds-col slds-size_1-of-1 slds-large-size_4-of-12 slds-p-around_medium">
+                <div class="sha-glass-panel slds-p-around_large">
+                    
+                    <div class="slds-grid slds-grid_align-spread slds-m-bottom_medium">
+                        <span class="slds-text-title_caps slds-text-color_inverse" style="opacity: 0.8;">Recommended Flight</span>
+                        <lightning-badge label="Available" class="slds-theme_success"></lightning-badge>
+                    </div>
+                    
+                    <div class="slds-text-align_center slds-m-bottom_large">
+                        <h2 class="slds-text-heading_large slds-text-color_inverse" style="font-weight: bold; font-size: 3rem;">
+                            {iataCode}
+                        </h2>
+                        <p class="slds-text-heading_small slds-text-color_inverse">{destinationName}</p>
+                    </div>
+
+                    <div class="slds-grid slds-grid_align-center slds-gutters_small">
+                        <div class="slds-col">
+                            <lightning-button 
+                                label="Close" 
+                                variant="base" 
+                                onclick={handleCloseModal}>
+                            </lightning-button>
+                        </div>
+                        <div class="slds-col">
+                            <lightning-button 
+                                label="Select Seats" 
+                                variant="brand" 
+                                onclick={handleProceedToSeatPicker}>
+                            </lightning-button>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+        </template>
+        
+    </div>
+</template>

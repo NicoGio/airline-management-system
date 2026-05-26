@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Origin_Airport__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>The origin airport for this specific flight segment.</description>
+    <label>Origin Airport</label>
+    <referenceTo>Airport__c</referenceTo>
+    <relationshipLabel>Departing Segments</relationshipLabel>
+    <relationshipName>Origin_Segments</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>
