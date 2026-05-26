@@ -1,34 +1,43 @@
-# ✈️ SKYHIGH AIRLINES - PROJECT CONTEXT & STATE ENGINE (SAVE GAME)
-AEGIS-PROTOCOL-VERSION: 2.0
-CURRENT_STATUS: E2E Backend Inventory Certified (Sign-Off) ➔ Ready for LWC shaSeatPicker
-TARGET_ORG_API_VERSION: 66.0 (Spring '26)
-REPOSITORY_BRANCH: origin/main (Clean, Committed & Synced)
+# ✈️ SkyHigh Airlines - Project State (A.E.G.I.S. Memory)
 
-🏗️ 3. SINGLE SOURCE OF TRUTH (SSOT) DATA MODEL (UPDATED)
-A. Flight__c (El Core Operativo)
-  - Flight_Number__c (Text, Unique, External ID, Required)
-  - Seat_Map_JSON_Long__c (Long Text Area, 131,072 characters)
-  - Departure_Airport__c (Lookup to Airport__c, Master-Detail)
-  - Arrival_Airport__c (Lookup to Airport__c, Master-Detail)
+**Date:** [Fecha Actual]  
+**Current Phase:** Phase 2 - Front-End (LWC) Integration  
+**Overall Status:** GREEN (Backend stable, Frontend initialized)
 
-C. Booking__c (Transacción de Pasajeros)
-  - Flight__c (Master-Detail, ControlledByParent)
-  - Transaction_Id__c (Text, Unique, External ID, Required)
-  - Status__c (Picklist: Pending, Confirmed, Cancelled) ➔ Enforces full compliance audit trail.
+---
 
-✅ 5. COMPLETED MILESTONES (SAVES)
-- [x] Baseline Workspace: VS Code configured with Prettier Apex, ESLint, and Apex PMD.
-- [x] BRD & TDD Sign-off: Functional requirements and technical design approved.
-- [x] DB Schema Deploy: XML metadata for all custom objects physically in the Org.
-- [x] Custom Picklist Field Metadata: Deployed Booking__c.Status__c with active FLS permissions.
-- [x] E2E Transactional Engine: Built lockSeat, confirmPurchase (with cancellation-aware idempotency), and cancelBooking methods.
-- [x] Deterministic Test Suite: Achieved full coverage passing all negative exception and repurchase lifecycle flows in SH_BookingController_Test.
-- [x] Git Hygiene: Main branch clean, pushed, and completely synced with origin.
+## 🏆 Milestones Completed (Today)
+1. **LDV Architecture Refactor (Backend):**
+   - Successfully migrated seat inventory management from `Flight__c` to `Flight_Segment__c` (`Seat_Map_JSON__c`).
+   - Implemented pessimistic locking (`FOR UPDATE`) in `SH_BookingController` to prevent concurrency collisions.
+   - Refactored `getSeatMapBySegment` to use a defensive `List` query pattern, gracefully handling `AuraHandledException`.
+2. **Technical Debt & Metadata Cleanup:**
+   - Exorcised ghost metadata: Purged legacy `FlightController.cls` and successfully deleted the obsolete `Seat_Map_JSON_Long__c` field.
+   - Aligned local repository with the Org's True State (SSoT), resolving validation conflicts with airport lookup fields.
+3. **100% Deterministic Testing:**
+   - `SH_BookingController_Test` achieved a **100% Pass Rate**.
+   - Fully covers successful locks, idempotency on purchases, robust cancellation lifecycles, and deliberate exception handling.
+4. **Front-End Initialization (`shaSeatPicker`):**
+   - Created the LWC skeleton (`shaSeatPicker`) following Zero Trust and Anti-FOUC guidelines.
+   - Integrated the `@wire` adapter to fetch cacheable JSON data.
+   - Designed the initial HTML/CSS structure with loading (spinner) and error degradation states.
 
-🎯 6. CURRENT MILESTONE & SPECIFIC TASK
-Active Sprint: Transitioning to Experience Builder Integration (shaSeatPicker LWC)
-- The server layer is 100% sealed and certified. The upcoming task is to start modeling the LWC interface to parse the JSON matrix and render the immersive SVG/Glassmorphism seat picker layout.
+---
 
-📋 7. NEXT STRATEGIC STEPS (THE RUNWAY)
-- LWR Layout Injection: Prepare global CSS tokens in the Experience Builder Head Markup to guarantee anti-FOUC immersion.
-- shaSeatPicker LWC development: Wire the component asynchronously to read and mutate the strongly typed JSON layout string.
+## 🚀 Next Actions (Tomorrow's Sprint)
+1. **LWC Visual Logic (Client-Side):**
+   - Finalize the DOM rendering of the cabin grid in `shaSeatPicker.html`.
+   - Implement the CSS styling to create the "immersive fuselage" look based on the `cssClass` mappings (`AVAILABLE`, `OCCUPIED`, `HELD`).
+2. **Interactive Selection & Locking:**
+   - Wire UI click events to trigger the `lockSeat` Apex method.
+   - Handle the temporary hold logic visually (turning selected seats Gold).
+3. **Checkout Integration (Preparation):**
+   - Prepare the payload and transaction ID generation for the final `confirmPurchase` call.
+
+---
+
+## 🏛️ Active Golden Rules in Effect
+- **Live Repository Grounding (SSoT):** GitHub and Local Workspace dictate reality over theory.
+- **Client-Side Visual Logic:** The Backend only sends pure data/status; the LWC decides how to paint it.
+- **Anti-FOUC:** The UI must always display a skeleton/spinner while waiting for Apex, avoiding UI jumps.
+- **Observability:** All catch blocks use `Application_Log__c` (Zero `System.debug` in production code).
