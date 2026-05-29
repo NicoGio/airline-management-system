@@ -1,7 +1,6 @@
 /**
  * @description Core controller for SkyHigh Air seat inventory lifecycle.
- * Refactored for Segment-based itinerary management. Now targets Flight_Segment__c 
- * for JSON manipulations to ensure LDV scalability and prevent Asset locking contention.
+ * Streamlined for Agentforce AI Concierge (Attribute-based, non-spatial).
  * @author A.E.G.I.S. Enterprise Architect
  */
 public with sharing class SH_BookingController {
@@ -9,25 +8,47 @@ public with sharing class SH_BookingController {
     private static final Integer HOLD_DURATION_MINUTES = 10;
 
     // =========================================================================
-    // WRAPPERS
+    // AI-OPTIMIZED DATA CONTRACT WRAPPERS
     // =========================================================================
+    
     public class SeatMapWrapper {
+        @AuraEnabled public String flightNumber { get; set; }
         @AuraEnabled public String aircraftType { get; set; }
+        @AuraEnabled public List<CabinWrapper> cabins { get; set; }
+        
+        public SeatMapWrapper() { 
+            this.cabins = new List<CabinWrapper>(); 
+        }
+    }
+
+    public class CabinWrapper {
+        @AuraEnabled public String cabinName { get; set; }
         @AuraEnabled public List<RowWrapper> rows { get; set; }
-        public SeatMapWrapper() { this.rows = new List<RowWrapper>(); }
+        
+        public CabinWrapper() { 
+            this.rows = new List<RowWrapper>(); 
+        }
     }
 
     public class RowWrapper {
-        @AuraEnabled public Integer rowNumber { get; set; }
-        @AuraEnabled public String cabinClass { get; set; } 
+        @AuraEnabled public String rowIndex { get; set; } 
         @AuraEnabled public List<SeatDetailWrapper> seats { get; set; }
-        public RowWrapper() { this.seats = new List<SeatDetailWrapper>(); }
+        
+        public RowWrapper() { 
+            this.seats = new List<SeatDetailWrapper>(); 
+        }
     }
 
     public class SeatDetailWrapper {
-        @AuraEnabled public String seatLetter { get; set; }
+        @AuraEnabled public String code { get; set; }
         @AuraEnabled public String status { get; set; } 
+        @AuraEnabled public String tier { get; set; }
         @AuraEnabled public Decimal price { get; set; }
+        
+        // Semantic attributes for Agentforce reasoning
+        @AuraEnabled public Boolean isWindow { get; set; } 
+        @AuraEnabled public Boolean isAisle { get; set; }  
+        
         @AuraEnabled public String heldBySession { get; set; } 
         @AuraEnabled public Datetime holdExpires { get; set; } 
     }
@@ -60,17 +81,10 @@ public with sharing class SH_BookingController {
     // BUSINESS PROCESS: QUERIES (Read-Only / Cacheable)
     // =========================================================================
 
-    /**
-     * @description Retrieves the current seat map status for a specific flight segment.
-     * Uses a List query pattern to prevent automatic QueryExceptions if the segment is not found,
-     * allowing for graceful error handling via AuraHandledException.
-     * @param segmentId The Id of the Flight_Segment__c to query.
-     * @return SeatMapWrapper The deserialized cabin configuration.
-     */
     @AuraEnabled(cacheable=true)
     public static SeatMapWrapper getSeatMapBySegment(Id segmentId) {
         List<Flight_Segment__c> segments = [
-            SELECT Seat_Map_JSON__c 
+            SELECT Id, Seat_Map_JSON__c 
             FROM Flight_Segment__c 
             WHERE Id = :segmentId 
             LIMIT 1
@@ -89,8 +103,7 @@ public with sharing class SH_BookingController {
 
     @AuraEnabled
     public static BookingResponse lockSeat(Id segmentId, String seatCode, String sessionIdentifier) {
-        ParsedSeat seatInfo = parseSeatCode(seatCode);
-        if (!seatInfo.isValid) return new BookingResponse(false, 'Invalid seat format.', 'INVALID_SEAT_FORMAT');
+        if (String.isBlank(seatCode)) return new BookingResponse(false, 'Invalid seat format.', 'INVALID_SEAT_FORMAT');
 
         Savepoint sp = Database.setSavepoint();
         try {
@@ -102,21 +115,21 @@ public with sharing class SH_BookingController {
             ];
             
             SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(segment.Seat_Map_JSON__c, SeatMapWrapper.class);
-            SeatDetailWrapper targetSeat = findSeatNode(cabinMap, seatInfo.rowNumber, seatInfo.seatLetter);
+            SeatDetailWrapper targetSeat = findSeatNode(cabinMap, seatCode);
 
             if (targetSeat == null) return new BookingResponse(false, 'Seat does not exist.', 'SEAT_NOT_FOUND');
 
-            if (targetSeat.status == 'HELD' && targetSeat.holdExpires != null && targetSeat.holdExpires < System.now()) {
-                targetSeat.status = 'AVAILABLE';
+            if (targetSeat.status == 'Held' && targetSeat.holdExpires != null && targetSeat.holdExpires < System.now()) {
+                targetSeat.status = 'Available';
                 targetSeat.heldBySession = null;
                 targetSeat.holdExpires = null;
             }
 
-            if (targetSeat.status != 'AVAILABLE') {
+            if (targetSeat.status != 'Available') {
                 return new BookingResponse(false, 'Seat unavailable.', 'SEAT_UNAVAILABLE');
             }
 
-            targetSeat.status = 'HELD';
+            targetSeat.status = 'Held';
             targetSeat.heldBySession = sessionIdentifier;
             targetSeat.holdExpires = System.now().addMinutes(HOLD_DURATION_MINUTES);
 
@@ -151,13 +164,13 @@ public with sharing class SH_BookingController {
             ];
             
             SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(segment.Seat_Map_JSON__c, SeatMapWrapper.class);
-            SeatDetailWrapper targetSeat = findSeatNode(cabinMap, parseSeatCode(seatCode).rowNumber, parseSeatCode(seatCode).seatLetter);
+            SeatDetailWrapper targetSeat = findSeatNode(cabinMap, seatCode);
 
-            if (targetSeat == null || targetSeat.status != 'HELD' || targetSeat.heldBySession != sessionIdentifier) {
+            if (targetSeat == null || targetSeat.status != 'Held' || targetSeat.heldBySession != sessionIdentifier) {
                 return new BookingResponse(false, 'Hold expired.', 'HOLD_EXPIRED');
             }
 
-            targetSeat.status = 'OCCUPIED';
+            targetSeat.status = 'Occupied';
             targetSeat.heldBySession = null;
             targetSeat.holdExpires = null;
 
@@ -198,12 +211,11 @@ public with sharing class SH_BookingController {
                 FOR UPDATE
             ];
             
-            ParsedSeat seatInfo = parseSeatCode(seatCode);
             SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(segment.Seat_Map_JSON__c, SeatMapWrapper.class);
-            SeatDetailWrapper targetSeat = findSeatNode(cabinMap, seatInfo.rowNumber, seatInfo.seatLetter);
+            SeatDetailWrapper targetSeat = findSeatNode(cabinMap, seatCode);
 
-            if (targetSeat != null && targetSeat.status == 'OCCUPIED') {
-                targetSeat.status = 'AVAILABLE';
+            if (targetSeat != null && targetSeat.status == 'Occupied') {
+                targetSeat.status = 'Available';
                 segment.Seat_Map_JSON__c = JSON.serialize(cabinMap);
                 update segment;
             }
@@ -225,30 +237,17 @@ public with sharing class SH_BookingController {
     // HELPERS
     // =========================================================================
 
-    private class ParsedSeat {
-        public Integer rowNumber;
-        public String seatLetter;
-        public Boolean isValid = false;
-    }
-
-    private static ParsedSeat parseSeatCode(String seatCode) {
-        ParsedSeat result = new ParsedSeat();
-        if (String.isBlank(seatCode)) return result;
-        System.Pattern seatPattern = System.Pattern.compile('(\\d+)([A-Z])');
-        System.Matcher seatMatcher = seatPattern.matcher(seatCode.toUpperCase());
-        if (seatMatcher.matches()) {
-            result.rowNumber = Integer.valueOf(seatMatcher.group(1));
-            result.seatLetter = seatMatcher.group(2);
-            result.isValid = true;
-        }
-        return result;
-    }
-
-    private static SeatDetailWrapper findSeatNode(SeatMapWrapper cabinMap, Integer rowNum, String letter) {
-        for (RowWrapper row : cabinMap.rows) {
-            if (row.rowNumber == rowNum) {
+    private static SeatDetailWrapper findSeatNode(SeatMapWrapper cabinMap, String seatCodeTarget) {
+        if (cabinMap == null || cabinMap.cabins == null) return null;
+        
+        for (CabinWrapper cabin : cabinMap.cabins) {
+            if (cabin.rows == null) continue;
+            for (RowWrapper row : cabin.rows) {
+                if (row.seats == null) continue; 
                 for (SeatDetailWrapper seat : row.seats) {
-                    if (seat.seatLetter.equalsIgnoreCase(letter)) return seat;
+                    if (seat.code.equalsIgnoreCase(seatCodeTarget)) {
+                        return seat;
+                    }
                 }
             }
         }

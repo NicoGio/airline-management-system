@@ -2,7 +2,7 @@ import { LightningElement, api, wire, track } from 'lwc';
 import getSeatMapBySegment from '@salesforce/apex/SH_BookingController.getSeatMapBySegment';
 import lockSeat from '@salesforce/apex/SH_BookingController.lockSeat';
 
-export default class ShaSeatPicker extends LightningElement {
+export default class ShaSeatRecommendation extends LightningElement {
     @api recordId; 
     
     @track isLoading = true;
@@ -29,25 +29,28 @@ export default class ShaSeatPicker extends LightningElement {
         }
     }
 
-    // Mocking the Agentforce decision engine
+    // Mocking the Agentforce decision engine temporarily
     extractBestSeatForUser(data) {
         let bestSeat = null;
-        // Simplified search for the first available Premium seat
-        data.cabins.forEach(cabin => {
-            cabin.rows.forEach(row => {
-                if (row.seats) {
-                    row.seats.forEach(seat => {
-                        if (seat.status === 'Available' && !bestSeat) {
-                            bestSeat = {
-                                ...seat,
-                                // Adding dynamic features for the UI
-                                features: ['Vista al exterior', 'Prioridad de embarque', 'Extra espacio para piernas']
-                            };
+        if(data && data.cabins) {
+            data.cabins.forEach(cabin => {
+                if(cabin.rows) {
+                    cabin.rows.forEach(row => {
+                        if (row.seats) {
+                            row.seats.forEach(seat => {
+                                if (seat.status === 'Available' && !bestSeat) {
+                                    bestSeat = {
+                                        ...seat,
+                                        // Adding dynamic features for the UI
+                                        features: ['Window View', 'Priority Boarding', 'Extra Legroom']
+                                    };
+                                }
+                            });
                         }
                     });
                 }
             });
-        });
+        }
         return bestSeat;
     }
 
@@ -63,6 +66,7 @@ export default class ShaSeatPicker extends LightningElement {
         })
         .catch(err => {
             this.errorMessage = 'Network error.';
+            console.error('Confirmation Error:', err);
         })
         .finally(() => {
             this.isLoading = false;

@@ -1,0 +1,114 @@
+.concierge-container {
+    display: flex;
+    justify-content: center;
+    padding: 2rem;
+    background-color: transparent;
+    font-family: -apple-system, system-ui, sans-serif;
+}
+
+.premium-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #6366f1; 
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 1.5rem;
+}
+
+.flight-context {
+    color: #64748b;
+    font-size: 0.85rem;
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+}
+
+.seat-focus {
+    margin-bottom: 2rem;
+}
+
+.seat-code {
+    font-size: 4rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1;
+    margin: 0;
+}
+
+.seat-tier {
+    font-size: 1.1rem;
+    color: #d97706; 
+    font-weight: 700;
+    margin-top: 0.5rem;
+}
+
+.seat-features {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 2.5rem;
+}
+
+.feature-badge {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.btn-confirm {
+    width: 100%;
+    background-color: #003366; /* Glb Primary */
+    color: white;
+    border: none;
+    padding: 1rem;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-confirm:hover {
+    background-color: #00A86B; /* Glb Accent */
+}
+
+.success-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: #00A86B;
+    font-weight: 800;
+    font-size: 1.1rem;
+    padding: 1rem;
+    background-color: #e6f7ef;
+    border-radius: 8px;
+}
+
+.error-banner {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    font-weight: bold;
+}
