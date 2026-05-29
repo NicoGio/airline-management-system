@@ -3,7 +3,7 @@
         
         <template if:true={isLoading}>
             <div class="spinner-overlay">
-                <lightning-spinner alternative-text="Agentforce is thinking..." size="medium" variant="brand"></lightning-spinner>
+                <lightning-spinner alternative-text="Agentforce is analyzing..." size="medium" variant="brand"></lightning-spinner>
             </div>
         </template>
 
@@ -11,8 +11,15 @@
             <div class="error-banner">{errorMessage}</div>
         </template>
 
+        <template if:false={isLoading}>
+            <template if:false={recommendedSeat}>
+                <template if:false={errorMessage}>
+                    <div class="error-banner">⚠️ No seats available in JSON.</div>
+                </template>
+            </template>
+        </template>
+
         <template if:true={recommendedSeat}>
-            <!-- AI Recommendation Card -->
             <div class="premium-card">
                 
                 <div class="card-header">
@@ -50,6 +57,5 @@
 
             </div>
         </template>
-
     </div>
 </template>

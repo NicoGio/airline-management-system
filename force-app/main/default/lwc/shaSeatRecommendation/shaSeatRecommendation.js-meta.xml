@@ -3,15 +3,10 @@
     <apiVersion>59.0</apiVersion>
     <isExposed>true</isExposed>
     <masterLabel>SkyHigh AI Seat Concierge</masterLabel>
-    <description>Agentforce AI Recommendation Card for Seat Assignment</description>
+    <description>Agentforce AI Recommendation Card</description>
     <targets>
         <target>lightningCommunity__Page</target>
         <target>lightningCommunity__Default</target>
         <target>lightning__RecordPage</target>
     </targets>
-    <targetConfigs>
-        <targetConfig targets="lightning__RecordPage,lightningCommunity__Default">
-            <property name="recordId" type="String" label="Segment Record ID" description="ID of the Flight Segment"/>
-        </targetConfig>
-    </targetConfigs>
 </LightningComponentBundle>

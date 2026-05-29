@@ -29,7 +29,6 @@ export default class ShaSeatRecommendation extends LightningElement {
         }
     }
 
-    // Mocking the Agentforce decision engine temporarily
     extractBestSeatForUser(data) {
         let bestSeat = null;
         if(data && data.cabins) {
@@ -41,7 +40,7 @@ export default class ShaSeatRecommendation extends LightningElement {
                                 if (seat.status === 'Available' && !bestSeat) {
                                     bestSeat = {
                                         ...seat,
-                                        // Adding dynamic features for the UI
+                                        // ✅ strictly English attributes!
                                         features: ['Window View', 'Priority Boarding', 'Extra Legroom']
                                     };
                                 }
@@ -66,7 +65,6 @@ export default class ShaSeatRecommendation extends LightningElement {
         })
         .catch(err => {
             this.errorMessage = 'Network error.';
-            console.error('Confirmation Error:', err);
         })
         .finally(() => {
             this.isLoading = false;
