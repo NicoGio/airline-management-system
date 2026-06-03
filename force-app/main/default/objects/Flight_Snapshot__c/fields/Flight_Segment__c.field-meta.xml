@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Flight_Segment__c</fullName>
+    <description>Link to the completed flight segment.</description>
+    <externalId>false</externalId>
+    <label>Flight Segment</label>
+    <referenceTo>Flight_Segment__c</referenceTo>
+    <relationshipLabel>Flight Snapshots</relationshipLabel>
+    <relationshipName>Flight_Snapshots</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

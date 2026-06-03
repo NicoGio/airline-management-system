@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Immutable audit object capturing the exact state of a flight segment upon completion.</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableReports>true</enableReports>
+    <enableHistory>false</enableHistory>
+    <label>Flight Snapshot</label>
+    <pluralLabel>Flight Snapshots</pluralLabel>
+    <nameField>
+        <displayFormat>SNAP-{0000000}</displayFormat>
+        <label>Snapshot ID</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <sharingModel>ReadWrite</sharingModel>
+</CustomObject>
