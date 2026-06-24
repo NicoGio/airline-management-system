@@ -1,16 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- 
-  @description Metadata configuration for the primary SkyHigh Air hero concierge interface.
-               Enforces target visibility boundaries for LWR Experience Cloud sites.
-  @author Nico & A.E.G.I.S. Enterprise Architect
--->
 <LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
-    <apiVersion>66.0</apiVersion>
+    <apiVersion>60.0</apiVersion>
     <isExposed>true</isExposed>
-    <masterLabel>SkyHigh Air Hero Concierge</masterLabel>
-    <description>Immersive landing framework that integrates with Agentforce event streams.</description>
+    <masterLabel>SkyHigh Hero Concierge</masterLabel>
+    <description>Immersive hero component with Agentforce integration and Glassmorphism UI.</description>
+    
     <targets>
         <target>lightningCommunity__Page</target>
         <target>lightningCommunity__Default</target>
     </targets>
+    
+    <targetConfigs>
+        <targetConfig targets="lightningCommunity__Default">
+            
+            <!-- CMS Integration Keys -->
+            <property name="brandLogoCmsKey" type="String" label="Brand Logo (CMS Key)" description="Content Key for the brand logo from Salesforce CMS (Public Channel)." />
+            <property name="defaultBgImageCmsKey" type="String" label="Default Background (CMS Key)" description="Content Key for the default hero background image." />
+
+            <!-- Header Navigation Labels -->
+            <property name="navLabel1" type="String" label="Nav Item 1 Label" default="Book a flight" />
+            <property name="navLabel2" type="String" label="Nav Item 2 Label" default="Manage" />
+            <property name="navLabel3" type="String" label="Nav Item 3 Label" default="Loyalty" />
+
+            <!-- Hero Text Content -->
+            <property name="heroGreetingText" type="String" label="Hero Greeting Text" default="Where is your next story?" />
+            <property name="heroSubGreetingText" type="String" label="Hero Sub-Greeting Text" default="Let our AI travel concierge find the perfect destination." />
+
+            <!-- Agentforce / Chat Panel Texts -->
+            <property name="agentforceConciergeTitle" type="String" label="Agentforce Panel Title" default="Agentforce Concierge" />
+
+            <!-- Dynamic Flight Card Modal Texts -->
+            <property name="modalTitle" type="String" label="Modal Title" default="Recommended Flight" />
+            <property name="modalCloseText" type="String" label="Modal Close Button Text" default="Close" />
+            <property name="modalSelectSeatText" type="String" label="Modal Action Button Text" default="Select Seats" />
+            
+        </targetConfig>
+    </targetConfigs>
 </LightningComponentBundle>

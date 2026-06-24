@@ -1,6 +1,7 @@
 /**
  * @description Core controller for SkyHigh Air seat inventory lifecycle.
- * Streamlined for Agentforce AI Concierge (Attribute-based, non-spatial).
+ * Streamlined for Agentforce AI Concierge (Attribute-based, non-spatial)
+ * and upgraded to support LDV Historical Snapshots.
  * @author A.E.G.I.S. Enterprise Architect
  */
 public with sharing class SH_BookingController {
@@ -232,6 +233,81 @@ public with sharing class SH_BookingController {
             return new BookingResponse(false, 'Cancellation failed.', 'SERVER_ERROR');
         }
     }
+
+    // =========================================================================
+    // BUSINESS PROCESS: FLIGHT CLOSURE & SNAPSHOT ARCHIVING
+    // =========================================================================
+
+    @AuraEnabled
+    public static BookingResponse closeFlightAndGenerateSnapshot(Id segmentId) {
+        Savepoint sp = Database.setSavepoint();
+        try {
+            // 1. Lock the segment
+            Flight_Segment__c segment = [
+                SELECT Id, Seat_Map_JSON__c 
+                FROM Flight_Segment__c 
+                WHERE Id = :segmentId 
+                FOR UPDATE
+            ];
+
+            if (String.isBlank(segment.Seat_Map_JSON__c)) {
+                return new BookingResponse(false, 'Seat Map is empty. Snapshot aborted.', 'EMPTY_MAP');
+            }
+
+            // 2. Deserialize the AI-Optimized JSON to calculate metrics
+            SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(segment.Seat_Map_JSON__c, SeatMapWrapper.class);
+            
+            Decimal totalSeats = 0;
+            Decimal occupiedSeats = 0;
+            Decimal simulatedRevenue = 0;
+
+            // Iterate over the AI semantic attributes
+            if (cabinMap.cabins != null) {
+                for (CabinWrapper cabin : cabinMap.cabins) {
+                    if (cabin.rows == null) continue;
+                    for (RowWrapper row : cabin.rows) {
+                        if (row.seats == null) continue;
+                        for (SeatDetailWrapper seat : row.seats) {
+                            totalSeats++;
+                            if (seat.status == 'Occupied') {
+                                occupiedSeats++;
+                                // MVP Revenue Logic based on semantic tier
+                                if (seat.tier == 'Premium') simulatedRevenue += 500;
+                                else if (seat.tier == 'Economy' || seat.tier == 'Standard') simulatedRevenue += 150;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Calculate exact Occupancy Rate
+            Decimal occupancyRate = 0;
+            if (totalSeats > 0) {
+                occupancyRate = (occupiedSeats / totalSeats) * 100;
+            }
+
+            // 4. Create the Historical Snapshot
+            Flight_Snapshot__c snapshot = new Flight_Snapshot__c(
+                Flight_Segment__c = segment.Id,
+                Final_Seat_Map__c = segment.Seat_Map_JSON__c,
+                Occupancy_Rate__c = occupancyRate.setScale(2),
+                Total_Revenue__c = simulatedRevenue
+            );
+            insert snapshot;
+
+            // 5. Data Offloading: Free up live DB space (LDV strategy)
+            segment.Seat_Map_JSON__c = null;
+            update segment;
+
+            return new BookingResponse(true, 'Flight closed and Snapshot generated successfully.', 'SNAPSHOT_CREATED');
+
+        } catch (Exception e) {
+            Database.rollback(sp);
+            logError('SNAPSHOT_GENERATION_ERROR | Segment: ' + segmentId + ' | ' + e.getMessage());
+            return new BookingResponse(false, 'System Error during flight closure.', 'SERVER_ERROR');
+        }
+    }
+
 
     // =========================================================================
     // HELPERS

@@ -1,7 +1,7 @@
 /**
  * @description Automated Test Suite for SH_BookingController lifecycle operations.
  * Refactored for the Flight_Segment__c Seat_Map_JSON__c architecture.
- * @author A.E.G.I.S. Enterprise Architect
+ * @author A.E.G.I.S. Enterprise Architect & Co-Pilot
  */
 @IsTest
 private class SH_BookingController_Test {
@@ -37,7 +37,6 @@ private class SH_BookingController_Test {
         insert testFlight;
 
         // 6. Create Flight Segment with LIVE JSON Inventory
-        // FIX: The system expects 'Departure_Airport__c' as a required field.
         Flight_Segment__c testSegment = new Flight_Segment__c(
             Flight__c = testFlight.Id,
             Asset__c = testAsset.Id,
@@ -202,5 +201,45 @@ private class SH_BookingController_Test {
         System.assertEquals('SERVER_ERROR', errorResponse.errorCode, 'Error code must be SERVER_ERROR.');
         
         System.assertEquals(1, [SELECT COUNT() FROM Application_Log__c], 'An Application_Log__c record should have been inserted.');
+    }
+
+    // --- NEW A.E.G.I.S. TESTS FOR SNAPSHOT & OFFLOADING ---
+
+    @isTest
+    static void testCloseFlightAndGenerateSnapshot_Success() {
+        // Retrieve the test segment
+        Flight_Segment__c segment = [SELECT Id, Seat_Map_JSON__c FROM Flight_Segment__c LIMIT 1];
+        
+        Test.startTest();
+        // Execute the snapshot and offload logic
+        SH_BookingController.closeFlightAndGenerateSnapshot(segment.Id);
+        Test.stopTest();
+
+        // Assert 1: The JSON field must be cleared (Data Offloading)
+        Flight_Segment__c updatedSegment = [SELECT Seat_Map_JSON__c FROM Flight_Segment__c WHERE Id = :segment.Id];
+        System.assertEquals(null, updatedSegment.Seat_Map_JSON__c, 'The operational JSON field should be cleared after snapshot creation.');
+
+        // Assert 2: The Snapshot record must exist
+        List<Flight_Snapshot__c> snapshots = [SELECT Final_Seat_Map__c FROM Flight_Snapshot__c];
+        System.assertEquals(1, snapshots.size(), 'One Flight Snapshot should be generated.');
+        System.assertNotEquals(null, snapshots[0].Final_Seat_Map__c, 'The historical JSON must be stored in the snapshot.');
+    }
+
+    @isTest
+    static void testCloseFlightAndGenerateSnapshot_Negative() {
+        // Intentionally pass a null ID to force an exception
+        Test.startTest();
+        try {
+            SH_BookingController.closeFlightAndGenerateSnapshot(null);
+            System.assert(false, 'Expected an Exception to be thrown.');
+        } catch (Exception e) {
+            System.assert(true, 'Exception caught successfully.');
+        }
+        Test.stopTest();
+
+        // Assert 3: Application_Log__c must be inserted for observability
+        List<Application_Log__c> logs = [SELECT Class_Name__c, Method_Name__c FROM Application_Log__c];
+        // Note: Ensure your catch block in closeFlightAndGenerateSnapshot inserts an Application_Log__c!
+        System.assert(logs.size() > 0, 'An application log must be generated upon failure.');
     }
 }

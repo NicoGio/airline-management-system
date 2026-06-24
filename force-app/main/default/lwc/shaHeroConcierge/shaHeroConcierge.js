@@ -1,40 +1,105 @@
-/**
- * @description Primary JS controller for the SkyHigh Air hero concierge interface.
- *              Handles real-time asynchronous UI state mutations via EMP API.
- * @author Nico & A.E.G.I.S. Enterprise Architect
+/*
+ * A.E.G.I.S. Architecture Note:
+ * CMS Resolution Handler added. Automatically converts raw CMS Content Keys (MCZ...) 
+ * into valid LWR delivery URLs for both the background and the brand logo.
  */
-import { LightningElement, track } from 'lwc';
+
+import { LightningElement, api, track } from 'lwc';
 import { subscribe, unsubscribe, onError } from 'lightning/empApi';
+import basePath from '@salesforce/community/basePath';
 
 export default class ShaHeroConcierge extends LightningElement {
-    @track isFlightFound = false;
-    @track destinationName = '';
-    @track cmsContentKey = '';
-    @track iataCode = '';
+    
+    // --- Experience Builder Configuration Properties ---
+    @api brandLogoCmsKey;           
+    @api defaultBgImageCmsKey;      
+    
+    @api navLabel1;
+    @api navLabel2;
+    @api navLabel3;
+    
+    @api heroGreetingText;
+    @api heroSubGreetingText;
+    
+    @api agentforceConciergeTitle;
+
+    @api modalTitle;
+    @api modalCloseText;
+    @api modalSelectSeatText;
+
+    // --- Reactive State ---
+    @track currentHeroTitle;
+    @track currentHeroSubtitle;
+    @track showFlightCard = false;
+    @track selectedDestinationCode = '';
+    @track selectedDestinationName = '';
+    
+    @track activeBackgroundUrl;
 
     channelName = '/event/Flight_Found__e';
     subscription = {};
 
     connectedCallback() {
+        this.currentHeroTitle = this.heroGreetingText;
+        this.currentHeroSubtitle = this.heroSubGreetingText;
+        this.activeBackgroundUrl = this.defaultBgImageCmsKey;
+
         this.handleSubscribe();
         this.registerErrorListener();
     }
 
-    disconnectedCallback() {
-        this.handleUnsubscribe();
+    // --- Utility: CMS URL Resolver ---
+    resolveCmsUrl(contentKey) {
+        if (!contentKey) return null;
+        
+        // If it's already a valid URL or path containing slashes, return as is
+        if (contentKey.includes('/')) {
+            // Prepend basePath if it's a relative CMS path to prevent routing issues in LWR
+            if (contentKey.startsWith('/cms')) {
+                const base = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
+                return `${base}${contentKey}`;
+            }
+            return contentKey;
+        }
+        
+        // If it's a raw Content Key (e.g., MCZ...), construct the standard LWR delivery path
+        const base = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
+        return `${base}/sfsites/c/cms/delivery/media/${contentKey}`;
     }
 
+    // --- Enterprise UI/UX Getters ---
+    get backgroundStyle() {
+        const bgKey = this.activeBackgroundUrl || this.defaultBgImageCmsKey;
+        const resolvedUrl = this.resolveCmsUrl(bgKey);
+        
+        if (resolvedUrl) {
+            return `background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.7)), url('${resolvedUrl}');`;
+        }
+        
+        // Return undefined to allow the CSS Unsplash fallback to take over
+        return undefined; 
+    }
+
+    get resolvedBrandLogoUrl() {
+        return this.resolveCmsUrl(this.brandLogoCmsKey);
+    }
+
+    // --- EMP API Logic ---
     handleSubscribe() {
         const messageCallback = (response) => {
-            // Parse Platform Event payload injected by Agentforce
             const payload = response.data.payload;
             
-            this.destinationName = payload.Destination_Name__c;
-            this.cmsContentKey = payload.CMS_Content_Key__c;
-            this.iataCode = payload.IATA_Code__c;
+            this.selectedDestinationCode = payload.Destination_IATA__c;
+            this.selectedDestinationName = payload.Destination_City__c;
             
-            // Trigger reactive UI mutation to display the Flight Card Modal
-            this.isFlightFound = true;
+            // Agentforce might send an ID or a URL; resolveCmsUrl will handle it properly
+            if (payload.CMS_Content_Key__c) {
+                this.activeBackgroundUrl = payload.CMS_Content_Key__c;
+            }
+            
+            this.currentHeroTitle = `Journey to ${this.selectedDestinationName}`;
+            this.currentHeroSubtitle = 'Your AI Concierge has prepared your itinerary.';
+            this.showFlightCard = true;
         };
 
         subscribe(this.channelName, -1, messageCallback).then((response) => {
@@ -42,31 +107,27 @@ export default class ShaHeroConcierge extends LightningElement {
         });
     }
 
-    handleUnsubscribe() {
-        if (this.subscription) {
-            unsubscribe(this.subscription, () => {
-                this.subscription = null;
-            });
-        }
-    }
-
     registerErrorListener() {
         onError((error) => {
-            // Silent client-side catch to maintain Zero Debugs policy
-            // In a production scenario, this could trigger an Application_Log__c insertion via Apex
-            console.error('EMP API streaming error encountered: ', JSON.stringify(error));
+            console.error('A.E.G.I.S. EMP API Event Connection Error: ', JSON.stringify(error));
         });
     }
 
-    handleCloseModal() {
-        // Resets the UI state safely
-        this.isFlightFound = false;
+    // --- Event Handlers ---
+    closeFlightCard() {
+        this.showFlightCard = false;
+        this.currentHeroTitle = this.heroGreetingText;
+        this.currentHeroSubtitle = this.heroSubGreetingText;
+        this.activeBackgroundUrl = this.defaultBgImageCmsKey;
     }
 
-    handleProceedToSeatPicker() {
-        // Dispatches event to parent container or standard navigation mixin
-        this.dispatchEvent(new CustomEvent('seatpicker', {
-            detail: { flightId: this.iataCode }
+    proceedToSeatPicker() {
+        this.dispatchEvent(new CustomEvent('seatselection', {
+            detail: { destination: this.selectedDestinationCode }
         }));
+    }
+
+    disconnectedCallback() {
+        unsubscribe(this.subscription, () => {});
     }
 }

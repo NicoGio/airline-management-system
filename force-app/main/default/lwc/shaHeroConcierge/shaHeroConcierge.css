@@ -1,0 +1,190 @@
+/* * A.E.G.I.S. Immersive Layout Controller
+ * Handles edge-to-edge background rendering and glassmorphism UI components.
+ */
+
+:host {
+    display: block;
+    width: 100%;
+}
+
+/* Base Container: The viewport controller */
+.hero-container {
+    width: 100vw;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    /* Static fallback for reliability while CMS loads */
+    background-color: var(--sha-color-primary, #003366);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    transition: background-image 1s ease-in-out;
+}
+
+/* Wrapper to constrain internal content to professional width */
+.hero-content-wrapper {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    box-sizing: border-box;
+    padding: 0 1rem;
+}
+
+/* --- Header --- */
+.hero-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2rem 0;
+    z-index: 20;
+    width: 100%;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+}
+
+.brand-logo {
+    max-height: 40px;
+    width: auto;
+}
+
+.hero-nav {
+    display: flex;
+    gap: 2.5rem;
+    font-weight: 600;
+}
+
+.hero-nav a {
+    color: white;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.hero-nav a:hover {
+    color: var(--sha-color-gold, #D4AF37);
+}
+
+/* --- Main Content --- */
+.hero-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2rem 0;
+    gap: 2rem;
+    z-index: 10;
+    width: 100%;
+}
+
+.hero-text-area {
+    flex: 1;
+    max-width: 50%;
+    color: white;
+}
+
+.hero-title {
+    font-size: 4.5rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+.hero-subtitle {
+    font-size: 1.25rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* --- Chat Panel --- */
+.chat-panel {
+    width: 400px;
+    height: 480px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.chat-header {
+    background: rgba(0, 0, 0, 0.1);
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    font-weight: bold;
+    color: white;
+}
+
+.chat-body {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+/* --- Aesthetic --- */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+    border-radius: 1rem;
+}
+
+/* --- Modal Styles --- */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 50; backdrop-filter: blur(4px);
+}
+
+.modal-card {
+    width: 90%; max-width: 450px; padding: 1.5rem;
+    color: #1f2937; background: rgba(255, 255, 255, 0.95) !important;
+    border-radius: 1rem;
+}
+
+.modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 1rem; font-size: 0.75rem; font-weight: bold;
+    text-transform: uppercase; color: #6b7280;
+}
+
+.badge {
+    background: #dcfce7; color: #15803d; padding: 0.25rem 0.5rem; border-radius: 9999px;
+}
+
+.modal-body {
+    display: flex; justify-content: space-between; align-items: center;
+    background: #f9fafb; border: 1px solid #f3f4f6; border-radius: 0.75rem;
+    padding: 1rem; margin-bottom: 1.5rem;
+}
+
+.flight-route h2 {
+    font-size: 1.5rem; font-weight: bold; color: var(--sha-color-primary, #003366); margin:0;
+}
+
+.modal-actions { display: flex; gap: 0.75rem; }
+
+.btn-secondary, .btn-primary {
+    padding: 0.75rem; border-radius: 0.5rem; font-weight: bold; border: none; cursor: pointer; flex: 1;
+}
+
+.btn-secondary { background: #f3f4f6; color: #4b5563; }
+.btn-primary { background: var(--sha-color-accent, #00A86B); color: white; }
+
+/* --- Responsiveness --- */
+@media (max-width: 1024px) {
+    .hero-main { flex-direction: column; text-align: center; justify-content: center; padding-bottom: 4rem; }
+    .hero-text-area { max-width: 100%; margin-bottom: 2rem; }
+}
+
+@media (max-width: 768px) {
+    .hero-nav { display: none; }
+    .chat-panel { width: 100%; max-width: 400px; }
+}

@@ -1,62 +1,71 @@
-<!-- 
-  @description Primary HTML template for SkyHigh Air hero concierge.
-               Displays dynamic background and the Agentforce integration container.
-  @author Nico & A.E.G.I.S. Enterprise Architect
--->
 <template>
-    <!-- Main Immersive Viewport mapped to our Head Markup CSS -->
-    <div class="sha-hero-viewport slds-is-relative slds-grid slds-wrap slds-grid_align-center slds-grid_vertical-align-center slds-p-around_large">
+    <!-- Background Container: Handles the full-bleed image dynamically -->
+    <div class="hero-container" style={backgroundStyle}>
         
-        <!-- Default Landing / Agentforce Chat Area -->
-        <div class="slds-col slds-size_1-of-1 slds-large-size_6-of-12 slds-p-around_medium">
-            <div class="sha-glass-panel slds-p-around_large">
-                <h1 class="slds-text-heading_large slds-text-color_inverse slds-m-bottom_small" style="font-weight: bold;">
-                    Where is your next story?
-                </h1>
-                <p class="slds-text-body_regular slds-text-color_inverse slds-m-bottom_medium">
-                    Let our AI travel concierge find the perfect destination based on the experience you want.
-                </p>
-                <!-- Agentforce embedded component or prompt placeholder goes here -->
-            </div>
-        </div>
+        <!-- Content Wrapper: Constrains width and centers content for Premium UX -->
+        <div class="hero-content-wrapper">
+            
+            <header class="hero-header">
+                <div class="brand">
+                    <!-- A.E.G.I.S. Update: Bind to the resolved URL getter, no hardcoded text -->
+                    <template if:true={resolvedBrandLogoUrl}>
+                        <img src={resolvedBrandLogoUrl} alt="Brand Logo" class="brand-logo" />
+                    </template>
+                </div>
+                
+                <nav class="hero-nav">
+                    <a href="javascript:void(0);">{navLabel1}</a>
+                    <a href="javascript:void(0);">{navLabel2}</a>
+                    <a href="javascript:void(0);">{navLabel3}</a>
+                </nav>
+            </header>
 
-        <!-- Dynamic Flight Card Modal (Rendered asynchronously via Platform Event payload) -->
-        <template if:true={isFlightFound}>
-            <div class="slds-col slds-size_1-of-1 slds-large-size_4-of-12 slds-p-around_medium">
-                <div class="sha-glass-panel slds-p-around_large">
-                    
-                    <div class="slds-grid slds-grid_align-spread slds-m-bottom_medium">
-                        <span class="slds-text-title_caps slds-text-color_inverse" style="opacity: 0.8;">Recommended Flight</span>
-                        <lightning-badge label="Available" class="slds-theme_success"></lightning-badge>
-                    </div>
-                    
-                    <div class="slds-text-align_center slds-m-bottom_large">
-                        <h2 class="slds-text-heading_large slds-text-color_inverse" style="font-weight: bold; font-size: 3rem;">
-                            {iataCode}
-                        </h2>
-                        <p class="slds-text-heading_small slds-text-color_inverse">{destinationName}</p>
-                    </div>
+            <main class="hero-main">
+                <div class="hero-text-area">
+                    <h1 class="hero-title text-shadow-md">
+                        <lightning-formatted-rich-text value={currentHeroTitle}></lightning-formatted-rich-text>
+                    </h1>
+                    <p class="hero-subtitle text-shadow-md">{currentHeroSubtitle}</p>
+                </div>
 
-                    <div class="slds-grid slds-grid_align-center slds-gutters_small">
-                        <div class="slds-col">
-                            <lightning-button 
-                                label="Close" 
-                                variant="base" 
-                                onclick={handleCloseModal}>
-                            </lightning-button>
+                <div class="chat-panel glass-panel">
+                    <div class="chat-header">
+                        <h2>{agentforceConciergeTitle}</h2>
+                    </div>
+                    <div class="chat-body no-scrollbar">
+                        <!-- Standard slot to drop the actual Agentforce Chat component in Builder later -->
+                        <slot></slot>
+                    </div>
+                </div>
+            </main>
+
+        </div> <!-- End of wrapper -->
+
+        <!-- Modal (Absolute positioned over everything) -->
+        <template if:true={showFlightCard}>
+            <div class="modal-overlay">
+                <div class="modal-card glass-panel">
+                    <div class="modal-header">
+                        <span class="modal-label">{modalTitle}</span>
+                        <span class="modal-status badge">{modalStatusLabel}</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="flight-route">
+                            <h2>EZE</h2>
+                            <p>Buenos Aires</p>
                         </div>
-                        <div class="slds-col">
-                            <lightning-button 
-                                label="Select Seats" 
-                                variant="brand" 
-                                onclick={handleProceedToSeatPicker}>
-                            </lightning-button>
+                        <div class="flight-icon">✈️</div>
+                        <div class="flight-route">
+                            <h2>{selectedDestinationCode}</h2>
+                            <p>{selectedDestinationName}</p>
                         </div>
                     </div>
-                    
+                    <div class="modal-actions">
+                        <button class="btn-secondary" onclick={closeFlightCard}>{modalCloseText}</button>
+                        <button class="btn-primary" onclick={proceedToSeatPicker}>{modalSelectSeatText}</button>
+                    </div>
                 </div>
             </div>
         </template>
-        
     </div>
 </template>
