@@ -1,7 +1,7 @@
 /**
  * @description Automated Test Suite for SH_BookingController lifecycle operations.
- * Refactored for the Flight_Segment__c Seat_Map_JSON__c architecture.
- * @author A.E.G.I.S. Enterprise Architect & Co-Pilot
+ * Refactored for the Flight_Segment__c Seat_Map_JSON__c architecture and SSoT Observability.
+ * @author Nico & A.E.G.I.S. Enterprise Architect & Co-Pilot
  */
 @IsTest
 private class SH_BookingController_Test {
@@ -237,9 +237,12 @@ private class SH_BookingController_Test {
         }
         Test.stopTest();
 
-        // Assert 3: Application_Log__c must be inserted for observability
-        List<Application_Log__c> logs = [SELECT Class_Name__c, Method_Name__c FROM Application_Log__c];
-        // Note: Ensure your catch block in closeFlightAndGenerateSnapshot inserts an Application_Log__c!
+        // Assert 3: Application_Log__c must be inserted for observability, adapted to SSoT schema
+        List<Application_Log__c> logs = [SELECT Id, Error_Message__c FROM Application_Log__c];
+        
         System.assert(logs.size() > 0, 'An application log must be generated upon failure.');
+        if (!logs.isEmpty()) {
+            System.assertNotEquals(null, logs[0].Error_Message__c, 'The error message must be captured in the consolidated field.');
+        }
     }
 }
