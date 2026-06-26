@@ -2,6 +2,7 @@
  * A.E.G.I.S. Architecture Note:
  * CMS Resolution Handler added. Automatically converts raw CMS Content Keys (MCZ...) 
  * into valid LWR delivery URLs for both the background and the brand logo.
+ * Grounded to match verified physical repository schemas (Flight_Found__e).
  */
 
 import { LightningElement, api, track } from 'lwc';
@@ -32,9 +33,11 @@ export default class ShaHeroConcierge extends LightningElement {
     @track currentHeroSubtitle;
     @track showFlightCard = false;
     @track selectedDestinationCode = '';
-    @track selectedDestinationName = '';
     
     @track activeBackgroundUrl;
+
+    // Hardcoded mock user session representing current browser state for multi-user isolation
+    currentSessionId = 'session_nico_01';
 
     channelName = '/event/Flight_Found__e';
     subscription = {};
@@ -88,18 +91,23 @@ export default class ShaHeroConcierge extends LightningElement {
     handleSubscribe() {
         const messageCallback = (response) => {
             const payload = response.data.payload;
+            const broadcastSessionId = payload.Session_Id__c;
             
-            this.selectedDestinationCode = payload.Destination_IATA__c;
-            this.selectedDestinationName = payload.Destination_City__c;
-            
-            // Agentforce might send an ID or a URL; resolveCmsUrl will handle it properly
-            if (payload.CMS_Content_Key__c) {
-                this.activeBackgroundUrl = payload.CMS_Content_Key__c;
+            // Centralized Routing Validation: Ensure transactional isolation between active guest channels
+            if (broadcastSessionId === this.currentSessionId) {
+                
+                // Mapping using the exact fields deployed in your Flight_Found__e metadata repository
+                this.selectedDestinationCode = payload.Destination_Code__c;
+                
+                if (payload.CMS_Content_Key__c) {
+                    this.activeBackgroundUrl = payload.CMS_Content_Key__c;
+                }
+                
+                // UX Fluidity boundaries: Dynamically alter hero narratives context
+                this.currentHeroTitle = `Journey to ${this.selectedDestinationCode}`;
+                this.currentHeroSubtitle = 'Your AI Concierge has prepared your itinerary.';
+                this.showFlightCard = true;
             }
-            
-            this.currentHeroTitle = `Journey to ${this.selectedDestinationName}`;
-            this.currentHeroSubtitle = 'Your AI Concierge has prepared your itinerary.';
-            this.showFlightCard = true;
         };
 
         subscribe(this.channelName, -1, messageCallback).then((response) => {

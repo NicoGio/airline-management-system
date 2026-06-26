@@ -1,71 +1,80 @@
 <template>
-    <!-- Background Container: Handles the full-bleed image dynamically -->
-    <div class="hero-container" style={backgroundStyle}>
+    <div class="app-container" style={backgroundStyle}>
         
-        <!-- Content Wrapper: Constrains width and centers content for Premium UX -->
-        <div class="hero-content-wrapper">
-            
-            <header class="hero-header">
-                <div class="brand">
-                    <!-- A.E.G.I.S. Update: Bind to the resolved URL getter, no hardcoded text -->
-                    <template if:true={resolvedBrandLogoUrl}>
-                        <img src={resolvedBrandLogoUrl} alt="Brand Logo" class="brand-logo" />
-                    </template>
-                </div>
-                
-                <nav class="hero-nav">
-                    <a href="javascript:void(0);">{navLabel1}</a>
-                    <a href="javascript:void(0);">{navLabel2}</a>
-                    <a href="javascript:void(0);">{navLabel3}</a>
-                </nav>
-            </header>
-
-            <main class="hero-main">
-                <div class="hero-text-area">
-                    <h1 class="hero-title text-shadow-md">
-                        <lightning-formatted-rich-text value={currentHeroTitle}></lightning-formatted-rich-text>
-                    </h1>
-                    <p class="hero-subtitle text-shadow-md">{currentHeroSubtitle}</p>
-                </div>
-
-                <div class="chat-panel glass-panel">
-                    <div class="chat-header">
-                        <h2>{agentforceConciergeTitle}</h2>
-                    </div>
-                    <div class="chat-body no-scrollbar">
-                        <!-- Standard slot to drop the actual Agentforce Chat component in Builder later -->
-                        <slot></slot>
-                    </div>
-                </div>
-            </main>
-
-        </div> <!-- End of wrapper -->
-
-        <!-- Modal (Absolute positioned over everything) -->
-        <template if:true={showFlightCard}>
-            <div class="modal-overlay">
-                <div class="modal-card glass-panel">
-                    <div class="modal-header">
-                        <span class="modal-label">{modalTitle}</span>
-                        <span class="modal-status badge">{modalStatusLabel}</span>
-                    </div>
-                    <div class="modal-body">
-                        <div class="flight-route">
-                            <h2>EZE</h2>
-                            <p>Buenos Aires</p>
-                        </div>
-                        <div class="flight-icon">✈️</div>
-                        <div class="flight-route">
-                            <h2>{selectedDestinationCode}</h2>
-                            <p>{selectedDestinationName}</p>
-                        </div>
-                    </div>
-                    <div class="modal-actions">
-                        <button class="btn-secondary" onclick={closeFlightCard}>{modalCloseText}</button>
-                        <button class="btn-primary" onclick={proceedToSeatPicker}>{modalSelectSeatText}</button>
-                    </div>
-                </div>
+        <header class="header-nav">
+            <div class="brand-container">
+                <template if:true={resolvedBrandLogoUrl}>
+                    <img src={resolvedBrandLogoUrl} alt="SkyHigh Airlines Logo" class="brand-logo" />
+                </template>
+                <template if:false={resolvedBrandLogoUrl}>
+                    <span class="brand-text-fallback">SkyHigh</span>
+                </template>
             </div>
-        </template>
+
+            <nav class="nav-links">
+                <a href="#" class="nav-item">{navLabel1}</a>
+                <a href="#" class="nav-item">{navLabel2}</a>
+                <a href="#" class="nav-item">{navLabel3}</a>
+            </nav>
+        </header>
+
+        <main class="main-content">
+            
+            <div class="hero-text-section">
+                <h1 class="hero-greeting">{currentHeroTitle}</h1>
+                <p class="hero-subgreeting">{currentHeroSubtitle}</p>
+            </div>
+
+            <div class="interactive-panel-section">
+                
+                <template if:false={showFlightCard}>
+                    <div class="glass-panel chat-wrapper-card">
+                        <div class="panel-header">
+                            <span class="status-indicator-online"></span>
+                            <h3>{agentforceConciergeTitle}</h3>
+                        </div>
+                        <div class="chat-placeholder-body">
+                            <p>AI Travel Assistant Active...</p>
+                        </div>
+                    </div>
+                </template>
+
+                <template if:true={showFlightCard}>
+                    <div class="glass-panel flight-card-modal-view">
+                        <div class="modal-badge-container">
+                            <span class="badge-title">{modalTitle}</span>
+                            <span class="badge-status-available">Available</span>
+                        </div>
+                        
+                        <div class="route-display-container">
+                            <div class="route-node">
+                                <span class="iata-code">EZE</span>
+                                <span class="city-name">Buenos Aires</span>
+                            </div>
+                            <div class="route-connector">
+                                <span class="flight-duration-eta">13h 45m</span>
+                            </div>
+                            <div class="route-node">
+                                <span class="iata-code">{selectedDestinationCode}</span>
+                                <span class="city-name">Destination</span>
+                            </div>
+                        </div>
+
+                        <div class="ai-picker-injection-zone">
+                            <c-sha-seat-recommendation 
+                                onseatselection={proceedToSeatPicker}>
+                            </c-sha-seat-recommendation>
+                        </div>
+
+                        <div class="modal-footer-actions">
+                            <button class="btn-secondary" onclick={closeFlightCard}>
+                                {modalCloseText}
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+            </div>
+        </main>
     </div>
 </template>
