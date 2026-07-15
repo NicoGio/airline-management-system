@@ -5,9 +5,6 @@
  */
 public with sharing class SH_AgentFlightAction {
 
-    /**
-     * @description Input parameters received from Agentforce conversation context.
-     */
     public class FlightRequest {
         @InvocableVariable(required=true description='IATA Code for the origin airport (e.g., EZE)')
         public String originIata;
@@ -19,9 +16,6 @@ public with sharing class SH_AgentFlightAction {
         public String sessionId;
     }
 
-    /**
-     * @description Output result returned back to Agentforce.
-     */
     public class FlightResult {
         @InvocableVariable(description='Indicates if a matching flight path was found and published')
         public Boolean isSuccess;
@@ -30,11 +24,6 @@ public with sharing class SH_AgentFlightAction {
         public String responseMessage;
     }
 
-    /**
-     * @description Queries active flight segments using real object relations and fires a Platform Event.
-     * @param requests List of requests mapped from Agentforce context.
-     * @return List<FlightResult> Results matching the batch inputs.
-     */
     @InvocableMethod(label='Search and Route Flights by Vibe' description='Queries active flight segments and notifies the LWR UI via Platform Events')
     public static List<FlightResult> searchAndRouteFlights(List<FlightRequest> requests) {
         List<FlightResult> results = new List<FlightResult>();
@@ -60,9 +49,9 @@ public with sharing class SH_AgentFlightAction {
             String sanitizedOrigin = String.escapeSingleQuotes(req.originIata.trim().toUpperCase());
             String sanitizedDest = String.escapeSingleQuotes(req.destinationIata.trim().toUpperCase());
 
-            // Grounded SOQL: Querying utilizing the real relational lookups extracted from your repository schema
+            // Grounded SOQL: Querying through Lookups utilizing parent relationship references (SSoT)
             List<Flight_Segment__c> activeSegments = [
-                SELECT Id, Flight__c, Origin_Airport__r.IATA_Code__c, Destination_Airport__r.IATA_Code__c
+                SELECT Id, Flight__c, Origin_Airport__c, Destination_Airport__c, Origin_Airport__r.IATA_Code__c, Destination_Airport__r.IATA_Code__c
                 FROM Flight_Segment__c
                 WHERE Origin_Airport__r.IATA_Code__c = :sanitizedOrigin 
                 AND Destination_Airport__r.IATA_Code__c = :sanitizedDest
@@ -75,8 +64,6 @@ public with sharing class SH_AgentFlightAction {
 
                 // Instantiate our custom Platform Event
                 Flight_Found__e flightEvent = new Flight_Found__e();
-                
-                // IMPORTANT: Make sure this field API Name matches your actual Flight_Found__e object definition
                 flightEvent.Flight_Id__c = targetedSegment.Flight__c; 
                 flightEvent.Destination_Code__c = sanitizedDest;
                 flightEvent.Session_Id__c = req.sessionId;
@@ -97,8 +84,6 @@ public with sharing class SH_AgentFlightAction {
         } catch (Exception ex) {
             res.responseMessage = 'An internal systemic error occurred while processing the flight routing request.';
             
-            // Observability: Graceful adaptation to current repository schema (SSoT)
-            // Concatenating structured data into the single existing Long Text Area field
             try {
                 Application_Log__c errorLog = new Application_Log__c();
                 errorLog.Error_Message__c = 'Class: SH_AgentFlightAction | Method: searchAndRouteFlights' 
@@ -107,7 +92,7 @@ public with sharing class SH_AgentFlightAction {
                 
                 Database.insert(errorLog, false);
             } catch (Exception logEx) {
-                // Fail-safe protection if logging engine encounters an infrastructure failure
+                // Fail-safe
             }
         }
 

@@ -1,80 +1,101 @@
+<!--
+  @description Grounded HTML template structure aligned 100% with Nico's physical CSS specifications.
+  @author Nico & A.E.G.I.S. Co-Pilot
+  @date July 2026
+-->
 <template>
-    <div class="app-container" style={backgroundStyle}>
+    <!-- Viewport Controller using your exact class descriptor -->
+    <div class="hero-container" style={backgroundStyle}>
         
-        <header class="header-nav">
-            <div class="brand-container">
-                <template if:true={resolvedBrandLogoUrl}>
-                    <img src={resolvedBrandLogoUrl} alt="SkyHigh Airlines Logo" class="brand-logo" />
-                </template>
-                <template if:false={resolvedBrandLogoUrl}>
-                    <span class="brand-text-fallback">SkyHigh</span>
-                </template>
-            </div>
-
-            <nav class="nav-links">
-                <a href="#" class="nav-item">{navLabel1}</a>
-                <a href="#" class="nav-item">{navLabel2}</a>
-                <a href="#" class="nav-item">{navLabel3}</a>
-            </nav>
-        </header>
-
-        <main class="main-content">
+        <!-- Internal width constraint boundary from your CSS -->
+        <div class="hero-content-wrapper">
             
-            <div class="hero-text-section">
-                <h1 class="hero-greeting">{currentHeroTitle}</h1>
-                <p class="hero-subgreeting">{currentHeroSubtitle}</p>
-            </div>
+            <!-- Header Layout Structure using your CSS classes -->
+            <header class="hero-header">
+                <div class="brand">
+                    <template if:true={resolvedBrandLogoUrl}>
+                        <!-- Increased logo scale wrapper for premium feel -->
+                        <img src={resolvedBrandLogoUrl} alt="SkyHigh Airlines Logo" class="brand-logo brand-logo-scaled" />
+                    </template>
+                    <template if:false={resolvedBrandLogoUrl}>
+                        <span class="brand-text-fallback brand-text-scaled">SkyHigh</span>
+                    </template>
+                </div>
 
-            <div class="interactive-panel-section">
+                <nav class="hero-nav">
+                    <a href="#">{navLabel1}</a>
+                    <a href="#">{navLabel2}</a>
+                    <a href="#">{navLabel3}</a>
+                </nav>
+            </header>
+
+            <!-- Main Interactive Workspace -->
+            <main class="hero-main">
                 
-                <template if:false={showFlightCard}>
-                    <div class="glass-panel chat-wrapper-card">
-                        <div class="panel-header">
-                            <span class="status-indicator-online"></span>
-                            <h3>{agentforceConciergeTitle}</h3>
-                        </div>
-                        <div class="chat-placeholder-body">
-                            <p>AI Travel Assistant Active...</p>
-                        </div>
-                    </div>
-                </template>
+                <!-- Typography Section -->
+                <div class="hero-text-area">
+                    <h1 class="hero-title">{currentHeroTitle}</h1>
+                    <p class="hero-subtitle">{currentHeroSubtitle}</p>
+                </div>
 
-                <template if:true={showFlightCard}>
-                    <div class="glass-panel flight-card-modal-view">
-                        <div class="modal-badge-container">
-                            <span class="badge-title">{modalTitle}</span>
-                            <span class="badge-status-available">Available</span>
-                        </div>
-                        
-                        <div class="route-display-container">
-                            <div class="route-node">
-                                <span class="iata-code">EZE</span>
-                                <span class="city-name">Buenos Aires</span>
+                <!-- Interface Interaction Section -->
+                <div class="hero-interactive-zone">
+                    
+                    <!-- CONDITION A: Render Agentforce Chat Panel -->
+                    <template if:false={showFlightCard}>
+                        <div class="chat-panel glass-panel">
+                            <div class="chat-header">
+                                <h3>{agentforceConciergeTitle}</h3>
                             </div>
-                            <div class="route-connector">
-                                <span class="flight-duration-eta">13h 45m</span>
-                            </div>
-                            <div class="route-node">
-                                <span class="iata-code">{selectedDestinationCode}</span>
-                                <span class="city-name">Destination</span>
+                            <!-- Target element for MIAW Inline adoption -->
+                            <div class="chat-body chat-body-interactive">
+                                <div class="miaw-chat-target" lwc:dom="manual"></div>
                             </div>
                         </div>
+                    </template>
 
-                        <div class="ai-picker-injection-zone">
-                            <c-sha-seat-recommendation 
-                                onseatselection={proceedToSeatPicker}>
-                            </c-sha-seat-recommendation>
+                    <!-- CONDITION B: Render Flight Card Card Modal (Agentforce Suggestion view) -->
+                    <template if:true={showFlightCard}>
+                        <div class="modal-card glass-panel">
+                            <div class="modal-header">
+                                <span>{modalTitle}</span>
+                                <span class="badge">Available</span>
+                            </div>
+                            
+                            <!-- Relational Route Layout Mapping physical EZE standard patterns -->
+                            <div class="modal-body">
+                                <div class="flight-route">
+                                    <p style="font-size: 0.75rem; color: #6b7280; margin: 0; text-transform: uppercase;">From</p>
+                                    <h2>EZE</h2>
+                                    <p style="font-size: 0.75rem; color: #6b7280; margin: 0;">Buenos Aires</p>
+                                </div>
+                                <div style="text-align: center; color: #9ca3af; font-size: 0.75rem;">
+                                    <span>13h 45m</span>
+                                </div>
+                                <div class="flight-route" style="text-align: right;">
+                                    <p style="font-size: 0.75rem; color: #6b7280; margin: 0; text-transform: uppercase;">To</p>
+                                    <h2>{selectedDestinationCode}</h2>
+                                    <p style="font-size: 0.75rem; color: #6b7280; margin: 0;">Destination</p>
+                                </div>
+                            </div>
+
+                            <!-- 🤖 Autonomous AI Seat Recommendation widget injection zone -->
+                            <div style="margin-bottom: 1.5rem;">
+                                <c-sha-seat-recommendation 
+                                    onseatselection={proceedToSeatPicker}>
+                                </c-sha-seat-recommendation>
+                            </div>
+
+                            <div class="modal-actions">
+                                <button class="btn-secondary" onclick={closeFlightCard}>
+                                    {modalCloseText}
+                                </button>
+                            </div>
                         </div>
+                    </template>
 
-                        <div class="modal-footer-actions">
-                            <button class="btn-secondary" onclick={closeFlightCard}>
-                                {modalCloseText}
-                            </button>
-                        </div>
-                    </div>
-                </template>
-
-            </div>
-        </main>
+                </div>
+            </main>
+        </div>
     </div>
 </template>

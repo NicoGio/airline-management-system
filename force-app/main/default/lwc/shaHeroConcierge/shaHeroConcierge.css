@@ -1,5 +1,9 @@
-/* * A.E.G.I.S. Immersive Layout Controller
- * Handles edge-to-edge background rendering and glassmorphism UI components.
+/**
+ * @description Immersive Layout Controller for SkyHigh Airlines Hero Concierge.
+ * Handles edge-to-edge background rendering, responsive typography hierarchy,
+ * and elite glassmorphism component styling for LWR runtime environments.
+ * @author Nico & A.E.G.I.S. Co-Pilot
+ * @date July 2026
  */
 
 :host {
@@ -7,14 +11,14 @@
     width: 100%;
 }
 
-/* Base Container: The viewport controller */
+/* --- Viewport & Base Structure --- */
 .hero-container {
     width: 100vw;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     position: relative;
-    /* Static fallback for reliability while CMS loads */
+    /* Static brand fallback color while CMS resources load */
     background-color: var(--sha-color-primary, #003366);
     background-size: cover;
     background-position: center;
@@ -22,24 +26,24 @@
     transition: background-image 1s ease-in-out;
 }
 
-/* Wrapper to constrain internal content to professional width */
+/* --- Internal Width Constraint Boundary (Expanded for widescreen immersive breath) --- */
 .hero-content-wrapper {
     width: 100%;
-    max-width: 1200px;
+    max-width: 1400px; /* Expanded from 1200px to match HTML POC specifications and prevent visual crowding[cite: 2] */
     margin: 0 auto;
     display: flex;
     flex-direction: column;
     flex: 1;
     box-sizing: border-box;
-    padding: 0 1rem;
+    padding: 0 1.5rem;
 }
 
-/* --- Header --- */
+/* --- Immersive Header Navigation --- */
 .hero-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 2rem 0;
+    padding: 2.5rem 0; /* Expanded padding space to balance higher logo scale */
     z-index: 20;
     width: 100%;
 }
@@ -47,144 +51,224 @@
 .brand {
     display: flex;
     align-items: center;
-    min-height: 40px;
+    min-height: 64px; /* Matched to new larger logo boundaries */
 }
 
 .brand-logo {
-    max-height: 40px;
+    max-height: 64px; /* Upscaled from 52px to grant significant brand visual weight */
     width: auto;
+    object-fit: contain;
+}
+
+.brand-text-fallback {
+    font-size: 2.25rem; /* Proportional scale fallback matching the 64px alignment */
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: #ffffff;
 }
 
 .hero-nav {
     display: flex;
-    gap: 2.5rem;
+    gap: 3rem; /* Expanded structural gap for premium layout breathe */
     font-weight: 600;
+    font-size: 0.95rem;
 }
 
 .hero-nav a {
-    color: white;
+    color: #ffffff;
     text-decoration: none;
-    transition: color 0.3s;
+    transition: color 0.3s ease-in-out;
 }
 
 .hero-nav a:hover {
     color: var(--sha-color-gold, #D4AF37);
 }
 
-/* --- Main Content --- */
+/* --- Main Workspace Layout (Top-Aligned for Optical Symmetry) --- */
 .hero-main {
     flex: 1;
     display: flex;
-    align-items: center;
+    align-items: flex-start; /* Changed from center to flex-start to align top baselines[cite: 2] */
     justify-content: space-between;
-    padding: 2rem 0;
-    gap: 2rem;
+    padding: 3rem 0 4rem 0; /* Expanded top padding to balance vertical rhythm */
+    gap: 4rem; /* Widened gap to let both columns breathe in the 1400px layout */
     z-index: 10;
     width: 100%;
 }
 
+/* --- Left Typography Section (Compensated Optical Offset) --- */
 .hero-text-area {
     flex: 1;
-    max-width: 50%;
-    color: white;
+    max-width: 55%; /* Slightly widened to prevent aggressive word wrapping in larger containers[cite: 2] */
+    color: #ffffff;
+    margin-top: 1.25rem; /* Optical offset to align the text cap-height with the chat-header center line[cite: 2] */
 }
 
 .hero-title {
-    font-size: 4.5rem;
+    font-size: 5rem; /* Cinematic upscale from 4.5rem for maximum inspirational impact */
     font-weight: 800;
-    line-height: 1.1;
+    line-height: 1.05; /* Tightened line height for large typography alignment */
     margin-bottom: 1.5rem;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
+    text-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
 .hero-subtitle {
-    font-size: 1.25rem;
-    color: rgba(255, 255, 255, 0.9);
+    font-size: 1.35rem; /* Proportional upscale to maintain typographic contrast */
+    color: rgba(255, 255, 255, 0.95);
+    line-height: 1.4;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* --- Chat Panel --- */
-.chat-panel {
-    width: 400px;
-    height: 480px;
+/* --- Right Interactive Section Panels --- */
+.chat-panel, .modal-card {
+    width: 420px; /* Scaled up from 400px to balance the imponent left title block */
+    height: 510px; /* Extended depth to grant breathing room for AI recommendation injection */
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    box-sizing: border-box;
 }
 
 .chat-header {
-    background: rgba(0, 0, 0, 0.1);
-    padding: 1rem 1.5rem;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 1.25rem 1.5rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    font-weight: bold;
-    color: white;
+    font-weight: 700;
+    color: #ffffff;
+    font-size: 1.1rem;
 }
 
+/* --- MIAW Container Native Adoption --- */
 .chat-body {
     flex: 1;
-    padding: 1rem;
-    overflow-y: auto;
+    padding: 0 !important; /* Zero padding to allow inline chat canvas to sit flush with glass borders[cite: 2] */
+    overflow: hidden; /* Prevent double scrollbars within the glass body */
+    display: flex;
+    flex-direction: column;
 }
 
-/* --- Aesthetic --- */
+/* Target node for Salesforce Web Messaging client bootstrapping */
+.miaw-chat-target {
+    width: 100%;
+    height: 100%;
+    background: transparent !important;
+    border-radius: 0 0 1rem 1rem;
+    overflow: hidden;
+}
+
+/* --- Immersive Glassmorphism Specification --- */
 .glass-panel {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.16);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
     border-radius: 1rem;
 }
 
-/* --- Modal Styles --- */
-.modal-overlay {
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 50; backdrop-filter: blur(4px);
-}
-
+/* --- Dynamic Flight Card Modal View Layout --- */
 .modal-card {
-    width: 90%; max-width: 450px; padding: 1.5rem;
-    color: #1f2937; background: rgba(255, 255, 255, 0.95) !important;
-    border-radius: 1rem;
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.16); /* Restored to glassmorphism vibe rather than flat white[cite: 2] */
 }
 
 .modal-header {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 1rem; font-size: 0.75rem; font-weight: bold;
-    text-transform: uppercase; color: #6b7280;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: 0.05em;
 }
 
 .badge {
-    background: #dcfce7; color: #15803d; padding: 0.25rem 0.5rem; border-radius: 9999px;
+    background: rgba(74, 222, 128, 0.25);
+    color: #4ade80;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    font-weight: 700;
 }
 
 .modal-body {
-    display: flex; justify-content: space-between; align-items: center;
-    background: #f9fafb; border: 1px solid #f3f4f6; border-radius: 0.75rem;
-    padding: 1rem; margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+.flight-route {
+    display: flex;
+    flex-direction: column;
 }
 
 .flight-route h2 {
-    font-size: 1.5rem; font-weight: bold; color: var(--sha-color-primary, #003366); margin:0;
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0;
+    letter-spacing: 0.02em;
 }
 
-.modal-actions { display: flex; gap: 0.75rem; }
-
-.btn-secondary, .btn-primary {
-    padding: 0.75rem; border-radius: 0.5rem; font-weight: bold; border: none; cursor: pointer; flex: 1;
+.modal-actions {
+    display: flex;
+    width: 100%;
+    margin-top: auto; /* Pushes action boundaries safely to the container footer */
 }
 
-.btn-secondary { background: #f3f4f6; color: #4b5563; }
-.btn-primary { background: var(--sha-color-accent, #00A86B); color: white; }
+.btn-secondary {
+    width: 100%;
+    padding: 0.85rem;
+    border-radius: 0.75rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    cursor: pointer;
+    transition: background 0.2s ease-in-out;
+}
 
-/* --- Responsiveness --- */
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* --- Responsive Layout Breakpoints --- */
 @media (max-width: 1024px) {
-    .hero-main { flex-direction: column; text-align: center; justify-content: center; padding-bottom: 4rem; }
-    .hero-text-area { max-width: 100%; margin-bottom: 2rem; }
+    .hero-main {
+        flex-direction: column;
+        text-align: center;
+        justify-content: center;
+        padding-bottom: 4rem;
+        gap: 2.5rem;
+    }
+    .hero-text-area {
+        max-width: 100%;
+        margin-bottom: 1rem;
+        margin-top: 0;
+    }
+    .hero-title {
+        font-size: 3.5rem;
+    }
 }
 
 @media (max-width: 768px) {
-    .hero-nav { display: none; }
-    .chat-panel { width: 100%; max-width: 400px; }
+    .hero-header {
+        padding: 1.5rem 0;
+    }
+    .hero-nav {
+        display: none; /* Mobile navigation hidden parameters */
+    }
+    .chat-panel, .modal-card {
+        width: 100%;
+        max-width: 400px;
+    }
 }
