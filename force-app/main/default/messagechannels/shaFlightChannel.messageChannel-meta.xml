@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningMessageChannel xmlns="http://soap.sforce.com/2006/04/metadata">
+    <masterLabel>SkyHigh Flight Interaction Channel</masterLabel>
+    <isExposed>true</isExposed>
+    <description>Enterprise pub/sub messaging channel linking concierge AI events with recommendation cards and seat selectors.</description>
+    <lightningMessageFields>
+        <fieldName>flightId</fieldName>
+        <description>The target Salesforce record ID for the Flight transaction.</description>
+    </lightningMessageFields>
+    <lightningMessageFields>
+        <fieldName>destinationCode</fieldName>
+        <description>The 3-letter IATA code of the destination airfield.</description>
+    </lightningMessageFields>
+    <lightningMessageFields>
+        <fieldName>interactionState</fieldName>
+        <description>State control token: RECOMMENDED, SHOW_SEATS, CLOSED.</description>
+    </lightningMessageFields>
+</LightningMessageChannel>

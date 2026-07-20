@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Represents a specific seat allocation for a single flight leg within a traveler reservation itinerary.</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>true</enableHistory>
+    <enableLicensing>false</enableLicensing>
+    <enableReports>true</enableReports>
+    <enableSearch>true</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <label>Booking Line Item</label>
+    <pluralLabel>Booking Line Items</pluralLabel>
+    <sharingModel>ControlledByParent</sharingModel>
+    <nameField>
+        <displayFormat>BLI-{00000000}</displayFormat>
+        <label>Booking Line Item Number</label>
+        <type>AutoNumber</type>
+    </nameField>
+</CustomObject>

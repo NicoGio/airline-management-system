@@ -3,10 +3,13 @@
  * CMS Resolution Handler added. Automatically converts raw CMS Content Keys (MCZ...) 
  * into valid LWR delivery URLs for both the background and the brand logo.
  * Grounded to match verified physical repository schemas (Flight_Found__e).
+ * Updated to support Enterprise decoupling via Lightning Message Service (LMS).
  */
 
-import { LightningElement, api, track } from 'lwc';
+import { LightningElement, api, track, wire } from 'lwc';
 import { subscribe, unsubscribe, onError } from 'lightning/empApi';
+import { publish, MessageContext } from 'lightning/messageService';
+import shaFlightChannel from '@salesforce/messageChannel/shaFlightChannel__c';
 import basePath from '@salesforce/community/basePath';
 
 export default class ShaHeroConcierge extends LightningElement {
@@ -33,14 +36,18 @@ export default class ShaHeroConcierge extends LightningElement {
     @track currentHeroSubtitle;
     @track showFlightCard = false;
     @track selectedDestinationCode = '';
-    
     @track activeBackgroundUrl;
 
-    // Hardcoded mock user session representing current browser state for multi-user isolation
-    currentSessionId = 'session_nico_01';
+    // --- Enterprise Context Holds ---
+    activeFlightRecordId = null;
+    currentSessionId = 'session_nico_01'; // Hardcoded mock user session representing browser state
 
     channelName = '/event/Flight_Found__e';
     subscription = {};
+
+    // Wire context broker required by the Lightning Message Service infrastructure
+    @wire(MessageContext)
+    messageContext;
 
     connectedCallback() {
         this.currentHeroTitle = this.heroGreetingText;
@@ -55,9 +62,7 @@ export default class ShaHeroConcierge extends LightningElement {
     resolveCmsUrl(contentKey) {
         if (!contentKey) return null;
         
-        // If it's already a valid URL or path containing slashes, return as is
         if (contentKey.includes('/')) {
-            // Prepend basePath if it's a relative CMS path to prevent routing issues in LWR
             if (contentKey.startsWith('/cms')) {
                 const base = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
                 return `${base}${contentKey}`;
@@ -65,7 +70,6 @@ export default class ShaHeroConcierge extends LightningElement {
             return contentKey;
         }
         
-        // If it's a raw Content Key (e.g., MCZ...), construct the standard LWR delivery path
         const base = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
         return `${base}/sfsites/c/cms/delivery/media/${contentKey}`;
     }
@@ -78,8 +82,6 @@ export default class ShaHeroConcierge extends LightningElement {
         if (resolvedUrl) {
             return `background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.7)), url('${resolvedUrl}');`;
         }
-        
-        // Return undefined to allow the CSS Unsplash fallback to take over
         return undefined; 
     }
 
@@ -96,8 +98,9 @@ export default class ShaHeroConcierge extends LightningElement {
             // Centralized Routing Validation: Ensure transactional isolation between active guest channels
             if (broadcastSessionId === this.currentSessionId) {
                 
-                // Mapping using the exact fields deployed in your Flight_Found__e metadata repository
+                // Extraction of context parameters driven by the physical repository data contract
                 this.selectedDestinationCode = payload.Destination_Code__c;
+                this.activeFlightRecordId = payload.Flight_Id__c;
                 
                 if (payload.CMS_Content_Key__c) {
                     this.activeBackgroundUrl = payload.CMS_Content_Key__c;
@@ -106,13 +109,27 @@ export default class ShaHeroConcierge extends LightningElement {
                 // UX Fluidity boundaries: Dynamically alter hero narratives context
                 this.currentHeroTitle = `Journey to ${this.selectedDestinationCode}`;
                 this.currentHeroSubtitle = 'Your AI Concierge has prepared your itinerary.';
-                this.showFlightCard = true;
+                
+                // Architectural Shift: Instead of toggling local visibility flags, we broadcast state via LMS
+                this.broadcastFlightRecommendation();
             }
         };
 
         subscribe(this.channelName, -1, messageCallback).then((response) => {
             this.subscription = response;
         });
+    }
+
+    /**
+     * Publishes the validated flight recommendation payload onto the shared message channel.
+     */
+    broadcastFlightRecommendation() {
+        const messagePayload = {
+            flightId: this.activeFlightRecordId,
+            destinationCode: this.selectedDestinationCode,
+            interactionState: 'RECOMMENDED'
+        };
+        publish(this.messageContext, shaFlightChannel, messagePayload);
     }
 
     registerErrorListener() {
@@ -127,12 +144,26 @@ export default class ShaHeroConcierge extends LightningElement {
         this.currentHeroTitle = this.heroGreetingText;
         this.currentHeroSubtitle = this.heroSubGreetingText;
         this.activeBackgroundUrl = this.defaultBgImageCmsKey;
+
+        // Broadcast the closure event to ensure workspace consistency
+        publish(this.messageContext, shaFlightChannel, { interactionState: 'CLOSED' });
     }
 
     proceedToSeatPicker() {
+        // Keeps local event dispatch active for compatibility reasons while transferring data
         this.dispatchEvent(new CustomEvent('seatselection', {
-            detail: { destination: this.selectedDestinationCode }
+            detail: { 
+                destination: this.selectedDestinationCode,
+                flightId: this.activeFlightRecordId
+            }
         }));
+
+        // Broadcast transition phase directly to notify the decoupled shaSeatPicker component
+        publish(this.messageContext, shaFlightChannel, {
+            flightId: this.activeFlightRecordId,
+            destinationCode: this.selectedDestinationCode,
+            interactionState: 'SHOW_SEATS'
+        });
     }
 
     disconnectedCallback() {

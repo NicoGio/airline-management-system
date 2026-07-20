@@ -1,15 +1,15 @@
 /**
  * @description Core controller for SkyHigh Air seat inventory lifecycle.
- * Streamlined for Agentforce AI Concierge (Attribute-based, non-spatial)
- * and upgraded to support LDV Historical Snapshots.
- * @author A.E.G.I.S. Enterprise Architect
+ * Evolved to leverage a Header-Line Item transactional PNR pattern,
+ * ensuring strict concurrency isolation, anti-deadlock sorting, and data offloading.
+ * @author Nico & A.E.G.I.S. Enterprise Architect & Co-Pilot
  */
 public with sharing class SH_BookingController {
 
     private static final Integer HOLD_DURATION_MINUTES = 10;
 
     // =========================================================================
-    // AI-OPTIMIZED DATA CONTRACT WRAPPERS
+    // DATA CONTRACT WRAPPERS
     // =========================================================================
     
     public class SeatMapWrapper {
@@ -45,13 +45,15 @@ public with sharing class SH_BookingController {
         @AuraEnabled public String status { get; set; } 
         @AuraEnabled public String tier { get; set; }
         @AuraEnabled public Decimal price { get; set; }
-        
-        // Semantic attributes for Agentforce reasoning
         @AuraEnabled public Boolean isWindow { get; set; } 
         @AuraEnabled public Boolean isAisle { get; set; }  
-        
         @AuraEnabled public String heldBySession { get; set; } 
         @AuraEnabled public Datetime holdExpires { get; set; } 
+    }
+
+    public class LegAssignment {
+        @AuraEnabled public Id segmentId { get; set; }
+        @AuraEnabled public String seatCode { get; set; }
     }
 
     public class BookingResponse {
@@ -79,7 +81,7 @@ public with sharing class SH_BookingController {
     }
 
     // =========================================================================
-    // BUSINESS PROCESS: QUERIES (Read-Only / Cacheable)
+    // BUSINESS PROCESS: INVENTORY READ (Cacheable / Lazy Evaluation)
     // =========================================================================
 
     @AuraEnabled(cacheable=true)
@@ -120,6 +122,7 @@ public with sharing class SH_BookingController {
 
             if (targetSeat == null) return new BookingResponse(false, 'Seat does not exist.', 'SEAT_NOT_FOUND');
 
+            // Lazy Evaluation of expired locks to protect performance boundaries
             if (targetSeat.status == 'Held' && targetSeat.holdExpires != null && targetSeat.holdExpires < System.now()) {
                 targetSeat.status = 'Available';
                 targetSeat.heldBySession = null;
@@ -147,80 +150,132 @@ public with sharing class SH_BookingController {
     }
 
     // =========================================================================
-    // BUSINESS PROCESS: PURCHASE CONFIRMATION
+    // BUSINESS PROCESS: MULTI-LEG PURCHASE CONFIRMATION (PNR REFACTOR)
     // =========================================================================
 
     @AuraEnabled
-    public static BookingResponse confirmPurchase(Id segmentId, String seatCode, String sessionIdentifier, String transactionId) {
+    public static BookingResponse confirmPurchase(Id flightId, Id passengerId, List<LegAssignment> assignments, String sessionIdentifier, String transactionId) {
+        // Idempotency check guarding against double payment submissions
         List<Booking__c> existingBookings = [SELECT Id FROM Booking__c WHERE Transaction_Id__c = :transactionId AND Status__c != 'Cancelled' LIMIT 1];
         if (!existingBookings.isEmpty()) return new BookingResponse(true, 'Already completed.', existingBookings[0].Id);
 
+        if (assignments == null || assignments.isEmpty()) return new BookingResponse(false, 'No flight segments selected.', 'MISSING_ASSIGNMENTS');
+
+        // Extract and sort segment IDs alphabetically to systematically prevent database row deadlocks
+        List<Id> segmentIds = new List<Id>();
+        for (LegAssignment asm : assignments) {
+            segmentIds.add(asm.segmentId);
+        }
+        segmentIds.sort();
+
         Savepoint sp = Database.setSavepoint();
         try {
-            Flight_Segment__c segment = [
+            // Pessimistic locking executed in uniform deterministic order
+            Map<Id, Flight_Segment__c> segmentMap = new Map<Id, Flight_Segment__c>([
                 SELECT Id, Seat_Map_JSON__c, Flight__c 
                 FROM Flight_Segment__c 
-                WHERE Id = :segmentId 
+                WHERE Id IN :segmentIds 
                 FOR UPDATE
-            ];
-            
-            SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(segment.Seat_Map_JSON__c, SeatMapWrapper.class);
-            SeatDetailWrapper targetSeat = findSeatNode(cabinMap, seatCode);
+            ]);
 
-            if (targetSeat == null || targetSeat.status != 'Held' || targetSeat.heldBySession != sessionIdentifier) {
-                return new BookingResponse(false, 'Hold expired.', 'HOLD_EXPIRED');
-            }
+            List<Flight_Segment__c> segmentsToUpdate = new List<Flight_Segment__c>();
+            List<Booking_Line_Item__c> linesToInsert = new List<Booking_Line_Item__c>();
 
-            targetSeat.status = 'Occupied';
-            targetSeat.heldBySession = null;
-            targetSeat.holdExpires = null;
-
-            segment.Seat_Map_JSON__c = JSON.serialize(cabinMap);
-            update segment;
-
+            // 1. Create the Commercial PNR Header
             Booking__c newBooking = new Booking__c(
-                Flight__c = segment.Flight__c,
+                Flight__c = flightId,
+                Passenger__c = passengerId,
                 Transaction_Id__c = transactionId,
                 Status__c = 'Confirmed'
             );
             insert newBooking;
 
+            // 2. Mutate inventory blocks and generate structural line items
+            for (LegAssignment asm : assignments) {
+                Flight_Segment__c segment = segmentMap.get(asm.segmentId);
+                SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(segment.Seat_Map_JSON__c, SeatMapWrapper.class);
+                SeatDetailWrapper targetSeat = findSeatNode(cabinMap, asm.seatCode);
+
+                if (targetSeat == null || targetSeat.status != 'Held' || targetSeat.heldBySession != sessionIdentifier) {
+                    Database.rollback(sp);
+                    return new BookingResponse(false, 'Hold expired or seat assignment mismatch.', 'HOLD_EXPIRED');
+                }
+
+                targetSeat.status = 'Occupied';
+                targetSeat.heldBySession = null;
+                targetSeat.holdExpires = null;
+                
+                segment.Seat_Map_JSON__c = JSON.serialize(cabinMap);
+                segmentsToUpdate.add(segment);
+
+                linesToInsert.add(new Booking_Line_Item__c(
+                    Booking__c = newBooking.Id,
+                    Flight_Segment__c = segment.Id,
+                    Seat_Code__c = asm.seatCode,
+                    Status__c = 'Confirmed'
+                ));
+            }
+
+            update segmentsToUpdate;
+            insert linesToInsert;
+
             return new BookingResponse(true, 'Issued.', newBooking.Id);
 
         } catch (Exception e) {
             Database.rollback(sp);
-            logError('CONFIRM_PURCHASE_ERROR | Segment: ' + segmentId + ' | ' + e.getMessage());
+            logError('CONFIRM_PURCHASE_ERROR | Tx: ' + transactionId + ' | ' + e.getMessage());
             return new BookingResponse(false, 'Transaction failed.', 'SERVER_ERROR');
         }
     }
 
     // =========================================================================
-    // BUSINESS PROCESS: CANCELLATION
+    // BUSINESS PROCESS: CANCELLATION ENGINE
     // =========================================================================
 
     @AuraEnabled
-    public static BookingResponse cancelBooking(Id bookingId, Id segmentId, String seatCode) {
+    public static BookingResponse cancelBooking(Id bookingId) {
         Savepoint sp = Database.setSavepoint();
         try {
             Booking__c booking = [SELECT Id, Status__c, Transaction_Id__c FROM Booking__c WHERE Id = :bookingId FOR UPDATE];
             if (booking.Status__c == 'Cancelled') return new BookingResponse(false, 'Already cancelled.', 'ALREADY_CANCELLED');
 
-            Flight_Segment__c segment = [
-                SELECT Id, Seat_Map_JSON__c 
-                FROM Flight_Segment__c 
-                WHERE Id = :segmentId 
-                FOR UPDATE
+            List<Booking_Line_Item__c> lines = [
+                SELECT Id, Flight_Segment__c, Seat_Code__c, Status__c 
+                FROM Booking_Line_Item__c 
+                WHERE Booking__c = :bookingId AND Status__c != 'Cancelled'
             ];
-            
-            SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(segment.Seat_Map_JSON__c, SeatMapWrapper.class);
-            SeatDetailWrapper targetSeat = findSeatNode(cabinMap, seatCode);
 
-            if (targetSeat != null && targetSeat.status == 'Occupied') {
-                targetSeat.status = 'Available';
-                segment.Seat_Map_JSON__c = JSON.serialize(cabinMap);
-                update segment;
+            List<Id> segmentIds = new List<Id>();
+            for (Booking_Line_Item__c line : lines) {
+                segmentIds.add(line.Flight_Segment__c);
+            }
+            segmentIds.sort();
+
+            Map<Id, Flight_Segment__c> segmentMap = new Map<Id, Flight_Segment__c>([
+                SELECT Id, Seat_Map_JSON__c FROM Flight_Segment__c WHERE Id IN :segmentIds FOR UPDATE
+            ]);
+
+            List<Flight_Segment__c> segmentsToUpdate = new List<Flight_Segment__c>();
+
+            // Revert all related leg inventory points within the transaction boundary
+            for (Booking_Line_Item__c line : lines) {
+                Flight_Segment__c segment = segmentMap.get(line.Flight_Segment__c);
+                if (segment != null && String.isNotBlank(segment.Seat_Map_JSON__c)) {
+                    SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(segment.Seat_Map_JSON__c, SeatMapWrapper.class);
+                    SeatDetailWrapper targetSeat = findSeatNode(cabinMap, line.Seat_Code__c);
+                    if (targetSeat != null && targetSeat.status == 'Occupied') {
+                        targetSeat.status = 'Available';
+                        segment.Seat_Map_JSON__c = JSON.serialize(cabinMap);
+                        segmentsToUpdate.add(segment);
+                    }
+                }
+                line.Status__c = 'Cancelled';
             }
 
+            if (!segmentsToUpdate.isEmpty()) update segmentsToUpdate;
+            if (!lines.isEmpty()) update lines;
+
+            // Release unique financial constraint allowing rapid portal rebooking
             booking.Status__c = 'Cancelled';
             booking.Transaction_Id__c += '-CNCL';
             update booking;
@@ -235,14 +290,13 @@ public with sharing class SH_BookingController {
     }
 
     // =========================================================================
-    // BUSINESS PROCESS: FLIGHT CLOSURE & SNAPSHOT ARCHIVING
+    // BUSINESS PROCESS: FLIGHT CLOSURE & DATA OFFLOADING (LDV STRATEGY)
     // =========================================================================
 
     @AuraEnabled
     public static BookingResponse closeFlightAndGenerateSnapshot(Id segmentId) {
         Savepoint sp = Database.setSavepoint();
         try {
-            // 1. Lock the segment
             Flight_Segment__c segment = [
                 SELECT Id, Seat_Map_JSON__c 
                 FROM Flight_Segment__c 
@@ -254,14 +308,12 @@ public with sharing class SH_BookingController {
                 return new BookingResponse(false, 'Seat Map is empty. Snapshot aborted.', 'EMPTY_MAP');
             }
 
-            // 2. Deserialize the AI-Optimized JSON to calculate metrics
             SeatMapWrapper cabinMap = (SeatMapWrapper) JSON.deserialize(segment.Seat_Map_JSON__c, SeatMapWrapper.class);
             
             Decimal totalSeats = 0;
             Decimal occupiedSeats = 0;
             Decimal simulatedRevenue = 0;
 
-            // Iterate over the AI semantic attributes
             if (cabinMap.cabins != null) {
                 for (CabinWrapper cabin : cabinMap.cabins) {
                     if (cabin.rows == null) continue;
@@ -271,7 +323,6 @@ public with sharing class SH_BookingController {
                             totalSeats++;
                             if (seat.status == 'Occupied') {
                                 occupiedSeats++;
-                                // MVP Revenue Logic based on semantic tier
                                 if (seat.tier == 'Premium') simulatedRevenue += 500;
                                 else if (seat.tier == 'Economy' || seat.tier == 'Standard') simulatedRevenue += 150;
                             }
@@ -280,13 +331,12 @@ public with sharing class SH_BookingController {
                 }
             }
 
-            // 3. Calculate exact Occupancy Rate
             Decimal occupancyRate = 0;
             if (totalSeats > 0) {
                 occupancyRate = (occupiedSeats / totalSeats) * 100;
             }
 
-            // 4. Create the Historical Snapshot
+            // 1. Write the permanent analytical audit backup record
             Flight_Snapshot__c snapshot = new Flight_Snapshot__c(
                 Flight_Segment__c = segment.Id,
                 Final_Seat_Map__c = segment.Seat_Map_JSON__c,
@@ -295,7 +345,7 @@ public with sharing class SH_BookingController {
             );
             insert snapshot;
 
-            // 5. Data Offloading: Free up live DB space (LDV strategy)
+            // 2. Data Offloading: Truncate operational string to zero out database footprint overhead
             segment.Seat_Map_JSON__c = null;
             update segment;
 
@@ -308,9 +358,8 @@ public with sharing class SH_BookingController {
         }
     }
 
-
     // =========================================================================
-    // HELPERS
+    // SYSTEM HELPERS
     // =========================================================================
 
     private static SeatDetailWrapper findSeatNode(SeatMapWrapper cabinMap, String seatCodeTarget) {

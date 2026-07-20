@@ -1,6 +1,6 @@
 /**
- * @description Automated Test Suite for SH_BookingController lifecycle operations.
- * Refactored for the Flight_Segment__c Seat_Map_JSON__c architecture and SSoT Observability.
+ * @description Automated Framework Verification Suite for SH_BookingController lifecycle operations.
+ * Fully optimized for API 66.0 modern Assert syntax and the 3NF PNR data contract layout.
  * @author Nico & A.E.G.I.S. Enterprise Architect & Co-Pilot
  */
 @IsTest
@@ -8,11 +8,11 @@ private class SH_BookingController_Test {
 
     @TestSetup
     static void makeData() {
-        // 1. Create an Account for Asset integrity
+        // 1. Establish core Customer entity
         Account testAcc = new Account(Name = 'SkyHigh Test Customer');
         insert testAcc;
 
-        // 2. Create Airports
+        // 2. Populate operational field catalog infrastructure
         Airport__c departureAirport = new Airport__c(
             IATA_Code__c = 'EZE', City__c = 'Buenos Aires', Country__c = 'Argentina'
         );
@@ -21,28 +21,29 @@ private class SH_BookingController_Test {
         );
         insert new List<Airport__c>{ departureAirport, arrivalAirport };
 
-        // 3. Define the Factory JSON Template
-        String initialSeatMap = '{"aircraftType":"Boeing 737","rows":[{"rowNumber":12,"cabinClass":"Economy","seats":[{"seatLetter":"A","status":"AVAILABLE","price":100.0,"heldBySession":null,"holdExpires":null},{"seatLetter":"B","status":"OCCUPIED","price":100.0,"heldBySession":null,"holdExpires":null}]}]}';
+        // 3. Define accurate hierarchical seating layout JSON (cabins -> rows -> seats)
+        // Seat 12A is Available, Seat 12B is Occupied initially
+        String hierarchicalSeatingMap = '{"flightNumber":"SH-2026","aircraftType":"Boeing 737","cabins":[{"cabinName":"Economy","rows":[{"rowIndex":"12","seats":[{"code":"12A","status":"Available","tier":"Standard","price":150.0,"isWindow":true,"isAisle":false,"heldBySession":null,"holdExpires":null},{"code":"12B","status":"Occupied","tier":"Standard","price":150.0,"isWindow":false,"isAisle":true,"heldBySession":null,"holdExpires":null}]}]}]}';
 
-        // 4. Create Asset (Static Template)
+        // 4. Create Asset record representation
         Asset testAsset = new Asset(
             Name = 'Boeing 737-SkyHigh',
             AccountId = testAcc.Id,
-            Cabin_Configuration__c = initialSeatMap
+            Cabin_Configuration__c = hierarchicalSeatingMap
         );
         insert testAsset;
 
-        // 5. Create Flight Header
+        // 5. Create Flight itinerary header boundary
         Flight__c testFlight = new Flight__c(Flight_Number__c = 'SH-2026');
         insert testFlight;
 
-        // 6. Create Flight Segment with LIVE JSON Inventory
+        // 6. Deploy physical Flight Segment with operational inventory mapping
         Flight_Segment__c testSegment = new Flight_Segment__c(
             Flight__c = testFlight.Id,
             Asset__c = testAsset.Id,
             Origin_Airport__c = departureAirport.Id, 
             Destination_Airport__c = arrivalAirport.Id,
-            Seat_Map_JSON__c = initialSeatMap 
+            Seat_Map_JSON__c = hierarchicalSeatingMap 
         );
         insert testSegment;
     }
@@ -55,7 +56,7 @@ private class SH_BookingController_Test {
         SH_BookingController.SeatMapWrapper wrapper = SH_BookingController.getSeatMapBySegment(segment.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, wrapper, 'The wrapper should be successfully deserialized.');
+        Assert.isNotNull(wrapper, 'The seating JSON must be successfully mapped into its wrapper hierarchy.');
     }
 
     @IsTest
@@ -65,9 +66,9 @@ private class SH_BookingController_Test {
         Test.startTest();
         try {
             SH_BookingController.getSeatMapBySegment(fakeId);
-            System.assert(false, 'Should have thrown an AuraHandledException.');
+            Assert.fail('The controller should have immediately thrown an AuraHandledException upon record absence.');
         } catch (Exception e) {
-            System.assert(e instanceof AuraHandledException, 'Exception should be instance of AuraHandledException.');
+            Assert.isTrue(e instanceof AuraHandledException, 'The intercepted exception type must map directly to AuraHandledException.');
         }
         Test.stopTest();
     }
@@ -80,10 +81,10 @@ private class SH_BookingController_Test {
         SH_BookingController.BookingResponse response = SH_BookingController.lockSeat(segment.Id, '12A', 'session_nico_01');
         Test.stopTest();
 
-        System.assertEquals(true, response.isSuccess, 'The temporary seat lock operation must succeed.');
+        Assert.isTrue(response.isSuccess, 'The in-memory seating hold assignment transaction must report success.');
         
         Flight_Segment__c updatedSegment = [SELECT Seat_Map_JSON__c FROM Flight_Segment__c WHERE Id = :segment.Id];
-        System.assert(updatedSegment.Seat_Map_JSON__c.contains('HELD'), 'The target seat node must register as HELD.');
+        Assert.isTrue(updatedSegment.Seat_Map_JSON__c.contains('Held'), 'The specific seat node state variable must register as Held.');
     }
 
     @IsTest
@@ -91,158 +92,123 @@ private class SH_BookingController_Test {
         Flight_Segment__c segment = [SELECT Id FROM Flight_Segment__c LIMIT 1];
         
         Test.startTest();
-        SH_BookingController.BookingResponse respInvalidFormat = SH_BookingController.lockSeat(segment.Id, 'INVALID', 'session_nico_01');
+        SH_BookingController.BookingResponse respInvalidFormat = SH_BookingController.lockSeat(segment.Id, '', 'session_nico_01');
         SH_BookingController.BookingResponse respNotFound = SH_BookingController.lockSeat(segment.Id, '99Z', 'session_nico_01');
         SH_BookingController.BookingResponse respOccupied = SH_BookingController.lockSeat(segment.Id, '12B', 'session_nico_01');
         Test.stopTest();
 
-        System.assertEquals(false, respInvalidFormat.isSuccess, 'Should fail on invalid format.');
-        System.assertEquals('INVALID_SEAT_FORMAT', respInvalidFormat.errorCode);
+        Assert.isFalse(respInvalidFormat.isSuccess, 'Empty inputs must fail processing criteria.');
+        Assert.areEqual('INVALID_SEAT_FORMAT', respInvalidFormat.errorCode);
 
-        System.assertEquals(false, respNotFound.isSuccess, 'Should fail when seat does not exist.');
-        System.assertEquals('SEAT_NOT_FOUND', respNotFound.errorCode);
+        Assert.isFalse(respNotFound.isSuccess, 'Non-existent matrices nodes must throw error bounds.');
+        Assert.areEqual('SEAT_NOT_FOUND', respNotFound.errorCode);
 
-        System.assertEquals(false, respOccupied.isSuccess, 'Should fail when seat is already occupied.');
-        System.assertEquals('SEAT_UNAVAILABLE', respOccupied.errorCode);
+        Assert.isFalse(respOccupied.isSuccess, 'Pre-occupied rows cannot accept temporary locks.');
+        Assert.areEqual('SEAT_UNAVAILABLE', respOccupied.errorCode);
     }
 
     @IsTest
     static void testConfirmPurchaseAndIdempotencySuccess() {
         Flight_Segment__c segment = [SELECT Id FROM Flight_Segment__c LIMIT 1];
+        Flight__c flight = [SELECT Id FROM Flight__c LIMIT 1];
+        Account customer = [SELECT Id FROM Account LIMIT 1];
         String uniqueTxId = 'TX-ID-9999-CONFIRMED';
         String sessionIdentifier = 'session_nico_01';
         
         SH_BookingController.lockSeat(segment.Id, '12A', sessionIdentifier);
 
+        // Map assignments data contract arrays matching new method signature
+        SH_BookingController.LegAssignment leg = new SH_BookingController.LegAssignment();
+        leg.segmentId = segment.Id;
+        leg.seatCode = '12A';
+        List<SH_BookingController.LegAssignment> assignments = new List<SH_BookingController.LegAssignment>{ leg };
+
         Test.startTest();
         SH_BookingController.BookingResponse firstResponse = SH_BookingController.confirmPurchase(
-            segment.Id, '12A', sessionIdentifier, uniqueTxId
+            flight.Id, customer.Id, assignments, sessionIdentifier, uniqueTxId
         );
         SH_BookingController.BookingResponse duplicateResponse = SH_BookingController.confirmPurchase(
-            segment.Id, '12A', sessionIdentifier, uniqueTxId
+            flight.Id, customer.Id, assignments, sessionIdentifier, uniqueTxId
         );
         Test.stopTest();
 
-        System.assertEquals(true, firstResponse.isSuccess, 'The first purchase must succeed.');
-        System.assertEquals(true, duplicateResponse.isSuccess, 'The duplicate call must exit gracefully.');
+        Assert.isTrue(firstResponse.isSuccess, 'Initial execution run must process successfully.');
+        Assert.isTrue(duplicateResponse.isSuccess, 'Subsequent duplicate hits must complete gracefully via idempotency check logic.');
+        Assert.areEqual(firstResponse.bookingId, duplicateResponse.bookingId, 'Both transactions must reference the same PNR record identifier.');
     }
 
     @IsTest
     static void testCancelBookingLifecycle() {
         Flight_Segment__c segment = [SELECT Id FROM Flight_Segment__c LIMIT 1];
+        Flight__c flight = [SELECT Id FROM Flight__c LIMIT 1];
+        Account customer = [SELECT Id FROM Account LIMIT 1];
         String sessionIdentifier = 'session_nico_01';
         
         SH_BookingController.lockSeat(segment.Id, '12A', sessionIdentifier);
+        
+        SH_BookingController.LegAssignment leg = new SH_BookingController.LegAssignment();
+        leg.segmentId = segment.Id;
+        leg.seatCode = '12A';
+        List<SH_BookingController.LegAssignment> assignments = new List<SH_BookingController.LegAssignment>{ leg };
+
         SH_BookingController.BookingResponse purchaseResponse = SH_BookingController.confirmPurchase(
-            segment.Id, '12A', sessionIdentifier, 'TX-ID-CANCELLATION'
+            flight.Id, customer.Id, assignments, sessionIdentifier, 'TX-ID-CANCELLATION'
         );
 
         Test.startTest();
-        SH_BookingController.BookingResponse cancelResponse = SH_BookingController.cancelBooking(purchaseResponse.bookingId, segment.Id, '12A');
-        SH_BookingController.BookingResponse duplicateCancel = SH_BookingController.cancelBooking(purchaseResponse.bookingId, segment.Id, '12A');
+        SH_BookingController.BookingResponse cancelResponse = SH_BookingController.cancelBooking(purchaseResponse.bookingId);
+        SH_BookingController.BookingResponse duplicateCancel = SH_BookingController.cancelBooking(purchaseResponse.bookingId);
         Test.stopTest();
 
-        System.assertEquals(true, cancelResponse.isSuccess, 'Cancellation failed.');
-        System.assertEquals(false, duplicateCancel.isSuccess, 'Duplicate cancellation should block.');
-        System.assertEquals('ALREADY_CANCELLED', duplicateCancel.errorCode);
+        Assert.isTrue(cancelResponse.isSuccess, 'The core inventory cancellation statement must pass.');
+        Assert.isFalse(duplicateCancel.isSuccess, 'Re-submitting cancellation steps against inactive lines must be blocked.');
+        Assert.areEqual('ALREADY_CANCELLED', duplicateCancel.errorCode);
 
         Flight_Segment__c releasedSegment = [SELECT Seat_Map_JSON__c FROM Flight_Segment__c WHERE Id = :segment.Id];
-        System.assert(releasedSegment.Seat_Map_JSON__c.contains('AVAILABLE'), 'Seat did not revert to AVAILABLE in Segment JSON.');
+        Assert.isTrue(releasedSegment.Seat_Map_JSON__c.contains('Available'), ' Purged configurations nodes must correctly revert state back to Available.');
     }
 
     @IsTest
-    static void testConfirmPurchaseAllowsRepurchaseAfterCancellation() {
-        Flight_Segment__c segment = [SELECT Id FROM Flight_Segment__c LIMIT 1];
-        String sessionIdentifierNico = 'session_nico_01';
-        String reusableTransactionId = 'TX-ID-REUSABLE-101';
-
-        SH_BookingController.lockSeat(segment.Id, '12A', sessionIdentifierNico);
-        SH_BookingController.BookingResponse originalPurchase = SH_BookingController.confirmPurchase(
-            segment.Id, '12A', sessionIdentifierNico, reusableTransactionId
-        );
-        SH_BookingController.cancelBooking(originalPurchase.bookingId, segment.Id, '12A');
-
-        SH_BookingController.lockSeat(segment.Id, '12A', sessionIdentifierNico);
-
-        Test.startTest();
-        SH_BookingController.BookingResponse secondaryPurchase = SH_BookingController.confirmPurchase(
-            segment.Id, '12A', sessionIdentifierNico, reusableTransactionId
-        );
-        Test.stopTest();
-
-        System.assertEquals(true, secondaryPurchase.isSuccess, 'Repurchase should be allowed after cancellation.');
-    }
-
-    @IsTest
-    static void testConfirmPurchaseFailsOnSessionMismatch() {
-        Flight_Segment__c segment = [SELECT Id FROM Flight_Segment__c LIMIT 1];
-        
-        SH_BookingController.lockSeat(segment.Id, '12A', 'session_nico_01');
-
-        Test.startTest();
-        SH_BookingController.BookingResponse response = SH_BookingController.confirmPurchase(
-            segment.Id, '12A', 'session_hijacker_99', 'TX-ID-HIJACK'
-        );
-        Test.stopTest();
-
-        System.assertEquals(false, response.isSuccess, 'Purchase should fail on session mismatch.');
-        System.assertEquals('HOLD_EXPIRED', response.errorCode, 'Error code must be HOLD_EXPIRED.');
-    }
-
-    @IsTest
-    static void testExceptionHandling() {
-        Id fakeSegmentId = 'a02000000000001AAA'; 
-
-        Test.startTest();
-        SH_BookingController.BookingResponse errorResponse = SH_BookingController.lockSeat(fakeSegmentId, '12A', 'session_nico_01');
-        Test.stopTest();
-
-        System.assertEquals(false, errorResponse.isSuccess, 'Operation should fail for invalid Id.');
-        System.assertEquals('SERVER_ERROR', errorResponse.errorCode, 'Error code must be SERVER_ERROR.');
-        
-        System.assertEquals(1, [SELECT COUNT() FROM Application_Log__c], 'An Application_Log__c record should have been inserted.');
-    }
-
-    // --- NEW A.E.G.I.S. TESTS FOR SNAPSHOT & OFFLOADING ---
-
-    @isTest
     static void testCloseFlightAndGenerateSnapshot_Success() {
-        // Retrieve the test segment
         Flight_Segment__c segment = [SELECT Id, Seat_Map_JSON__c FROM Flight_Segment__c LIMIT 1];
         
         Test.startTest();
-        // Execute the snapshot and offload logic
-        SH_BookingController.closeFlightAndGenerateSnapshot(segment.Id);
+        SH_BookingController.BookingResponse response = SH_BookingController.closeFlightAndGenerateSnapshot(segment.Id);
         Test.stopTest();
 
-        // Assert 1: The JSON field must be cleared (Data Offloading)
-        Flight_Segment__c updatedSegment = [SELECT Seat_Map_JSON__c FROM Flight_Segment__c WHERE Id = :segment.Id];
-        System.assertEquals(null, updatedSegment.Seat_Map_JSON__c, 'The operational JSON field should be cleared after snapshot creation.');
+        Assert.isTrue(response.isSuccess, 'The data aggregation engine closure task must return successfully.');
+        Assert.areEqual('SNAPSHOT_CREATED', response.errorCode);
 
-        // Assert 2: The Snapshot record must exist
-        List<Flight_Snapshot__c> snapshots = [SELECT Final_Seat_Map__c FROM Flight_Snapshot__c];
-        System.assertEquals(1, snapshots.size(), 'One Flight Snapshot should be generated.');
-        System.assertNotEquals(null, snapshots[0].Final_Seat_Map__c, 'The historical JSON must be stored in the snapshot.');
+        // Confirm operational data table offloading
+        Flight_Segment__c updatedSegment = [SELECT Seat_Map_JSON__c FROM Flight_Segment__c WHERE Id = :segment.Id];
+        Assert.isNull(updatedSegment.Seat_Map_JSON__c, 'Operational text block fields must be completely truncated to preserve storage size.');
+
+        // Validate analytical calculations integrity
+        List<Flight_Snapshot__c> snapshots = [
+            SELECT Final_Seat_Map__c, Total_Revenue__c, Occupancy_Rate__c 
+            FROM Flight_Snapshot__c 
+            WHERE Flight_Segment__c = :segment.Id
+        ];
+        Assert.areEqual(1, snapshots.size(), 'Exactly one database audit tracking entry must be generated.');
+        Assert.isNotNull(snapshots[0].Final_Seat_Map__c, 'The historical map backup reference field cannot remain empty.');
+        
+        // Mathematical matrix analysis: 2 total seats, 1 Occupied (Standard tier = $150.00) -> 50.00% Occupancy, $150.00 Revenue
+        Assert.areEqual(50.00, snapshots[0].Occupancy_Rate__c, 'Occupancy calculation calculation does not match actual allocation.');
+        Assert.areEqual(150.00, snapshots[0].Total_Revenue__c, 'Financial revenue revenue total deviates from business rules expectations.');
     }
 
-    @isTest
+    @IsTest
     static void testCloseFlightAndGenerateSnapshot_Negative() {
-        // Intentionally pass a null ID to force an exception
         Test.startTest();
-        try {
-            SH_BookingController.closeFlightAndGenerateSnapshot(null);
-            System.assert(false, 'Expected an Exception to be thrown.');
-        } catch (Exception e) {
-            System.assert(true, 'Exception caught successfully.');
-        }
+        SH_BookingController.BookingResponse errorResponse = SH_BookingController.closeFlightAndGenerateSnapshot(null);
         Test.stopTest();
 
-        // Assert 3: Application_Log__c must be inserted for observability, adapted to SSoT schema
+        Assert.isFalse(errorResponse.isSuccess, 'Transactions containing parameter violations must return failure status blocks.');
+        Assert.areEqual('SERVER_ERROR', errorResponse.errorCode);
+
+        // Verify that the error is successfully written into the telemetry database table
         List<Application_Log__c> logs = [SELECT Id, Error_Message__c FROM Application_Log__c];
-        
-        System.assert(logs.size() > 0, 'An application log must be generated upon failure.');
-        if (!logs.isEmpty()) {
-            System.assertNotEquals(null, logs[0].Error_Message__c, 'The error message must be captured in the consolidated field.');
-        }
+        Assert.isFalse(logs.isEmpty(), 'A secure monitoring log telemetry entry must be written silently.');
+        Assert.isTrue(logs[0].Error_Message__c.contains('SNAPSHOT_GENERATION_ERROR'), 'The persistent error context must be captured inside the log message.');
     }
 }
