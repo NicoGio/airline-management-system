@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExtlClntAppOauthSettings xmlns="http://soap.sforce.com/2006/04/metadata">
+    <commaSeparatedOauthScopes>Api, Chatter, RefreshToken</commaSeparatedOauthScopes>
+    <externalClientApplication>Agentforce_API_Gateway</externalClientApplication>
+    <isFirstPartyAppEnabled>false</isFirstPartyAppEnabled>
+    <label>Agentforce_API_Gateway_oauth</label>
+    <oauthLink>00DdM00000vvyX2:888dM000001pYa9</oauthLink>
+</ExtlClntAppOauthSettings>
