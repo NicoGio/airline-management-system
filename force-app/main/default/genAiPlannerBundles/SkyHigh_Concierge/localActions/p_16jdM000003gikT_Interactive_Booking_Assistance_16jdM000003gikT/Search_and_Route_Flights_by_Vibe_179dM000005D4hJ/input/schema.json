@@ -1,0 +1,29 @@
+{
+  "required" : [ "destinationIata", "originIata", "sessionId" ],
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "destinationIata" : {
+      "title" : "destinationIata",
+      "description" : "IATA Code for the destination airport (e.g., HND)",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "originIata" : {
+      "title" : "originIata",
+      "description" : "IATA Code for the origin airport (e.g., EZE)",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "sessionId" : {
+      "title" : "sessionId",
+      "description" : "Unique session identifier from the Experience Cloud chat context",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    }
+  },
+  "lightning:type" : "lightning__objectType",
+  "lightning:textIndexed" : true
+}
