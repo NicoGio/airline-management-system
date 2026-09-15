@@ -1,384 +1,320 @@
-/**
- * @description Immersive Layout Controller for SkyHigh Airlines Hero Concierge.
- * Handles edge-to-edge background rendering, responsive typography hierarchy,
- * and elite glassmorphism component styling for LWR runtime environments.
- * Refactored to support dynamic real-time conversational bubble layout streams.
- * @author Nico & A.E.G.I.S. Co-Pilot
- * @date July 2026
+/*
+ * A.E.G.I.S. Enterprise Architecture Component:
+ * Master Stylesheet for shaHeroConcierge LWC.
+ * Encapsulates: Static Ambient Glow Logo, Breathable Header, and Snug Micro-Bubbles with Zero Parasitic Margins.
  */
 
 :host {
     display: block;
     width: 100%;
+    --skyhigh-primary: #0284c7;
+    --skyhigh-primary-hover: #0369a1;
+    --skyhigh-dark: #0f172a;
+    --skyhigh-user-bg: rgba(30, 41, 59, 0.90);
 }
 
-/* --- Viewport & Base Structure --- */
-.hero-container {
-    width: 100vw;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+/* 1. MASTER WRAPPER & RADIAL VIGNETTE (FULL SCREEN BLEED) */
+.skyhigh-master-wrapper {
+    width: 100%;
+    min-height: 100vh; 
+    border-radius: 0; 
+    overflow: hidden;
     position: relative;
-    background-color: var(--sha-color-primary, #003366);
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-    transition: background-image 1s ease-in-out;
-}
-
-/* --- Internal Width Constraint Boundary (Expanded for widescreen immersive breath) --- */
-.hero-content-wrapper {
-    width: 100%;
-    max-width: 1400px;
-    margin: 0 auto;
+    box-shadow: none;
     display: flex;
     flex-direction: column;
-    flex: 1;
-    box-sizing: border-box;
-    padding: 0 1.5rem;
-}
-
-/* --- Immersive Header Navigation --- */
-.hero-header {
-    display: flex;
     justify-content: space-between;
-    align-items: center;
-    padding: 2.5rem 0;
-    z-index: 20;
+    box-sizing: border-box;
+}
+
+.skyhigh-master-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(
+        circle, 
+        rgba(0, 0, 0, 0.05) 30%,   /* Center: 5% black tint (maximum brightness) */
+        rgba(0, 0, 0, 0.55) 100%   /* Edges:  55% black tint (vignette contrast) */
+    );
+    z-index: 1;
+    pointer-events: none; 
+}
+
+/* 2. BRANDING & PERMANENT STATIC AERO-GLOW LOGO */
+.skyhigh-logo-container {
+    padding: 3rem 4rem 0 4rem;
+    z-index: 2;
+    position: relative; 
     width: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+    box-sizing: border-box;
 }
 
-.brand {
-    display: flex;
-    align-items: center;
-    min-height: 64px;
-}
-
-.brand-logo {
-    max-height: 64px;
+.skyhigh-logo {
+    height: 95px;
     width: auto;
     object-fit: contain;
+    filter: drop-shadow(0 0 16px rgba(2, 132, 199, 0.85)) 
+            drop-shadow(0 0 32px rgba(2, 132, 199, 0.45)) 
+            drop-shadow(0 6px 14px rgba(0, 0, 0, 0.5));
 }
 
-.brand-text-fallback {
-    font-size: 2.25rem;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    color: #ffffff;
-}
-
-.hero-nav {
+.skyhigh-hero-container {
     display: flex;
-    gap: 3rem;
-    font-weight: 600;
-    font-size: 0.95rem;
-}
-
-.hero-nav a {
-    color: #ffffff;
-    text-decoration: none;
-    transition: color 0.3s ease-in-out;
-}
-
-.hero-nav a:hover {
-    color: var(--sha-color-gold, #D4AF37);
-}
-
-/* --- Main Workspace Layout (Top-Aligned for Optical Symmetry) --- */
-.hero-main {
-    flex: 1;
-    display: flex;
-    align-items: flex-start;
+    flex-wrap: wrap; 
     justify-content: space-between;
-    padding: 3rem 0 4rem 0;
+    align-items: center; 
+    padding: 2rem 4rem 4rem 4rem;
     gap: 4rem;
-    z-index: 10;
-    width: 100%;
-}
-
-/* --- Left Typography Section (Compensated Optical Offset) --- */
-.hero-text-area {
     flex: 1;
-    max-width: 55%;
-    color: #ffffff;
-    margin-top: 1.25rem;
-}
-
-.hero-title {
-    font-size: 5rem;
-    font-weight: 800;
-    line-height: 1.05;
-    margin-bottom: 1.5rem;
-    letter-spacing: -0.03em;
-    text-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-}
-
-.hero-subtitle {
-    font-size: 1.35rem;
-    color: rgba(255, 255, 255, 0.95);
-    line-height: 1.4;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-/* --- Right Interactive Section Panels --- */
-.chat-panel, .modal-card {
-    width: 420px;
-    height: 510px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    width: 100%;
+    max-width: 1440px;
+    margin: 0 auto; 
+    z-index: 2;
+    position: relative; 
     box-sizing: border-box;
 }
 
-.chat-header {
-    background: rgba(0, 0, 0, 0.15);
-    padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    font-weight: 700;
-    color: #ffffff;
-    font-size: 1.1rem;
+/* 3. LEFT REGION: Narrative Typography */
+.skyhigh-left-panel {
+    flex: 1 1 500px;
+    max-width: 850px;
 }
 
-/* --- Chat Body & Interactive History Streams --- */
-.chat-body {
-    flex: 1;
-    padding: 0 !important;
-    overflow: hidden;
+.skyhigh-headline {
+    font-size: clamp(2.2rem, 3.8vw, 4.2rem);
+    font-weight: 970;
+    color: #ffffff;
+    line-height: 1.1;
+    margin-bottom: 1.25rem;
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); 
+}
+
+.skyhigh-subheadline {
+    font-size: clamp(1.1rem, 1.8vw, 1.4rem); 
+    color: #f8fafc;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    font-weight: 400;
+    line-height: 1.4;
+    max-width: 90%;
+}
+
+/* 4. RIGHT REGION: Glassmorphism Conversational Panel */
+.skyhigh-chat-panel {
+    flex: 0 0 420px; 
+    height: 580px;   
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
-.chat-history-area {
+.glassmorphism-panel {
+    background: rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(24px); 
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.35); 
+    border-radius: 20px; 
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Breathable Header */
+.chat-header {
+    padding: 1.35rem 1.5rem; 
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.chat-header h2 {
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 1.2rem; 
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+/* Chat Messages Stream */
+.chat-messages-container {
     flex: 1;
     padding: 1.25rem;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    scroll-behavior: smooth;
+    gap: 0.65rem;
+    background: rgba(0, 0, 0, 0.05);
 }
 
-/* Invisible minimal custom scrollbar to guard premium design aesthetics */
-.chat-history-area::-webkit-scrollbar {
-    width: 4px;
+.chat-messages-container::-webkit-scrollbar {
+    width: 5px;
 }
-.chat-history-area::-webkit-scrollbar-track {
+
+.chat-messages-container::-webkit-scrollbar-track {
     background: transparent;
 }
-.chat-history-area::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
+
+.chat-messages-container::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
 }
 
-/* --- High-Contrast Granular Chat Bubbles --- */
-.bubble-agent {
-    background: rgba(255, 255, 255, 0.95);
-    color: #1f2937;
-    padding: 0.85rem 1.1rem;
-    font-size: 0.875rem;
-    line-height: 1.4;
-    border-radius: 0.85rem 0.85rem 0.85rem 0;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    align-self: flex-start;
-    max-w: 90%;
+.chat-messages-container::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.5);
 }
 
+.message-row {
+    display: flex;
+    width: 100%;
+}
+
+.message-row:has(.bubble-user) {
+    justify-content: flex-end;
+}
+
+.message-row:has(.bubble-agent) {
+    justify-content: flex-start;
+}
+
+/* Snug & Compact Bubbles (Zero Parasitic Margins) */
 .bubble-user {
-    background: rgba(255, 255, 255, 0.25);
-    color: #ffffff;
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;
-    line-height: 1.4;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 0.85rem 0.85rem 0 0.85rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     align-self: flex-end;
-    max-w: 85%;
+    background: var(--skyhigh-user-bg);
+    color: #ffffff;
+    padding: 0.55rem 0.85rem;
+    border-radius: 14px 14px 2px 14px;
+    max-width: 80%;
+    width: fit-content;
+    font-size: 0.875rem;
+    line-height: 1.35;
+    word-break: break-word;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.bubble-agent {
+    align-self: flex-start;
+    background: #ffffff;
+    color: #1e293b;
+    padding: 0.55rem 0.85rem;
+    border-radius: 14px 14px 14px 2px;
+    max-width: 82%;
+    width: fit-content;
+    font-size: 0.875rem;
+    line-height: 1.35;
+    word-break: break-word;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+
+/* Neutralize Paragraph Default Margins */
+.bubble-user p,
+.bubble-agent p {
+    margin: 0;
+    padding: 0;
 }
 
 .bubble-error {
-    background: rgba(239, 68, 68, 0.25);
-    color: #fee2e2;
-    padding: 0.85rem 1.1rem;
-    font-size: 0.875rem;
-    border: 1px solid rgba(239, 68, 68, 0.4);
-    border-radius: 0.85rem 0.85rem 0.85rem 0;
-    align-self: flex-start;
-    max-w: 90%;
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
 }
 
-/* --- Interactive Input Footer Grid --- */
-.input-glass-container {
-    padding: 1.25rem;
-    background: rgba(0, 0, 0, 0.25);
-    border-t: 1px solid rgba(255, 255, 255, 0.15);
-    display: flex;
+/* 5. TYPING INDICATOR */
+.agent-typing-row {
+    justify-content: flex-start;
+    margin-top: 0.1rem;
+}
+
+.typing-indicator-bubble {
+    display: inline-flex;
     align-items: center;
-    position: relative;
-    width: 100%;
+    justify-content: center;
+    gap: 5px;
+    padding: 0.6rem 0.95rem;
+    min-width: 48px;
+    height: 34px;
     box-sizing: border-box;
+    border-radius: 14px 14px 14px 2px;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    width: fit-content;
 }
 
-.input-glass-field {
-    width: 100%;
+.typing-dot {
+    width: 6px;
+    height: 6px;
+    background-color: #94a3b8;
+    border-radius: 50%;
+    display: inline-block;
+    animation: aegisDotPulse 1.4s infinite ease-in-out both;
+}
+
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+.typing-dot:nth-child(3) { animation-delay: 0s; }
+
+@keyframes aegisDotPulse {
+    0%, 80%, 100% {
+        transform: scale(0.65);
+        opacity: 0.4;
+        background-color: #94a3b8;
+    }
+    40% {
+        transform: scale(1.15);
+        opacity: 1;
+        background-color: var(--skyhigh-primary);
+    }
+}
+
+/* 6. INPUT CONTROL BAR */
+.chat-input-container {
+    padding: 0.75rem 1rem;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.15);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.chat-input {
+    flex: 1;
     background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 9999px;
-    padding: 0.65rem 3rem 0.65rem 1.25rem;
-    font-size: 0.875rem;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 20px;
+    padding: 0.5rem 0.95rem;
     color: #ffffff;
     outline: none;
-    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-.input-glass-field:focus {
+.chat-input:focus {
     background: rgba(255, 255, 255, 0.25);
-    border-color: rgba(255, 255, 255, 0.45);
+    border-color: #ffffff;
 }
 
-.input-glass-field::placeholder {
-    color: rgba(255, 255, 255, 0.6);
+.chat-input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
 }
 
-.btn-input-send {
-    position: absolute;
-    right: 1.65rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1.75rem;
-    height: 1.75rem;
-    background: #003366;
+.send-btn {
+    background: var(--skyhigh-primary);
     border: none;
     border-radius: 50%;
+    width: 34px;
+    height: 34px;
     color: #ffffff;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: background 0.2s ease;
 }
 
-.btn-input-send:hover:not(:disabled) {
-    background: #002244;
+.send-btn:hover:not([disabled]) {
+    background: var(--skyhigh-primary-hover);
+    transform: scale(1.05);
 }
 
-.btn-input-send:disabled {
-    opacity: 0.4;
+.send-btn:disabled {
+    background: rgba(255, 255, 255, 0.2);
     cursor: not-allowed;
-}
-
-/* --- Immersive Glassmorphism Specification --- */
-.glass-panel {
-    background: rgba(255, 255, 255, 0.16);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
-    border-radius: 1rem;
-}
-
-/* --- Dynamic Flight Card Modal View Layout --- */
-.modal-card {
-    padding: 1.5rem;
-    background: rgba(255, 255, 255, 0.16);
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.25rem;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.7);
-    letter-spacing: 0.05em;
-}
-
-.badge {
-    background: rgba(74, 222, 128, 0.25);
-    color: #4ade80;
-    padding: 0.25rem 0.75rem;
-    border-radius: 9999px;
-    border: 1px solid rgba(74, 222, 128, 0.3);
-    font-weight: 700;
-}
-
-.modal-body {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 0.75rem;
-    padding: 1.25rem;
-    margin-bottom: 1.25rem;
-}
-
-.flight-route {
-    display: flex;
-    flex-direction: column;
-}
-
-.flight-route h2 {
-    font-size: 1.85rem;
-    font-weight: 800;
-    color: #ffffff;
-    margin: 0;
-    letter-spacing: 0.02em;
-}
-
-.modal-actions {
-    display: flex;
-    width: 100%;
-    margin-top: auto;
-}
-
-.btn-secondary {
-    width: 100%;
-    padding: 0.85rem;
-    border-radius: 0.75rem;
-    font-weight: 700;
-    font-size: 0.95rem;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    background: rgba(255, 255, 255, 0.15);
-    color: #ffffff;
-    cursor: pointer;
-    transition: background 0.2s ease-in-out;
-}
-
-.btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.25);
-}
-
-/* --- Responsive Layout Breakpoints --- */
-@media (max-width: 1024px) {
-    .hero-main {
-        flex-direction: column;
-        text-align: center;
-        justify-content: center;
-        padding-bottom: 4rem;
-        gap: 2.5rem;
-    }
-    .hero-text-area {
-        max-width: 100%;
-        margin-bottom: 1rem;
-        margin-top: 0;
-    }
-    .hero-title {
-        font-size: 3.5rem;
-    }
-}
-
-@media (max-width: 768px) {
-    .hero-header {
-        padding: 1.5rem 0;
-    }
-    .hero-nav {
-        display: none;
-    }
-    .chat-panel, .modal-card {
-        width: 100%;
-        max-width: 400px;
-    }
+    opacity: 0.5;
 }

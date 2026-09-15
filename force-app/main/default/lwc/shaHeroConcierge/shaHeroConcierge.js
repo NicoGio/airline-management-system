@@ -1,289 +1,283 @@
 /*
  * A.E.G.I.S. Enterprise Architecture Component:
- * Core Orchestrator for the SkyHigh Airlines Experience Cloud LWR Portal.
- * Integrates the Guest Auth Gate pattern using @salesforce/user/isGuest.
- * Preserves pending search context in sessionStorage upon login redirection.
- * Refactored for Zero-Hardcode Agentforce Initial Greeting & Resilient Session Handshake.
+ * Master Orchestrator Controller for SkyHigh Airlines Experience Cloud.
+ * Features:
+ * - Production-Grade: Zero console logging statements
+ * - Zero Hardcode: Dynamic payload extraction without static fallbacks
+ * - Turn-Based State Machine: Natural conversation handoff via Agentforce inference
+ * - 1800ms Perception Buffer for seamless UI transition
+ * - Clean LMS Propagation across shaFlightChannel__c
+ * - Automatic Input Focus Restoration via requestAnimationFrame
  */
-
-import { LightningElement, api, track, wire } from 'lwc';
-import isGuestUser from '@salesforce/user/isGuest';
-import { subscribe, unsubscribe, onError } from 'lightning/empApi';
-import { publish, MessageContext } from 'lightning/messageService';
-import shaFlightChannel from '@salesforce/messageChannel/shaFlightChannel__c';
-import basePath from '@salesforce/community/basePath';
+import { LightningElement, track, api, wire } from 'lwc';
 import sendMessageToAgent from '@salesforce/apex/SH_AgentforceBroker.sendMessageToAgent';
+import pollForFlightEvent from '@salesforce/apex/SH_AgentforceBroker.pollForFlightEvent';
+
+import { publish, subscribe, unsubscribe, MessageContext, APPLICATION_SCOPE } from 'lightning/messageService';
+import SHA_FLIGHT_CHANNEL from '@salesforce/messageChannel/shaFlightChannel__c';
 
 export default class ShaHeroConcierge extends LightningElement {
-    
-    // --- Experience Builder Configuration Properties ---
-    @api brandLogoCmsKey;              
-    @api defaultBgImageCmsKey;      
+    @api brandLogoCmsKey;
+    @api defaultBgImageCmsKey;
     @api navLabel1;
     @api navLabel2;
     @api navLabel3;
     @api heroGreetingText;
     @api heroSubGreetingText;
-    @api agentforceConciergeTitle; 
+    @api agentforceConciergeTitle;
     @api modalTitle;
     @api modalCloseText;
     @api modalSelectSeatText;
 
-    // --- Core Visual Reactive State ---
-    @track currentHeroTitle;
-    @track currentHeroSubtitle;
-    @track showFlightCard = false;
-    @track selectedDestinationCode = '';
-    @track activeBackgroundUrl;
-
-    // --- Chat Terminal Reactive State ---
-    @track userInput = '';
-    @track isLoading = false;
     @track chatMessages = [];
-
-    // --- Enterprise Context Trackers ---
-    activeFlightRecordId = null;
-    currentSessionId = null; 
+    @track isLoading = false;
+    @track currentInputText = '';
+    @track currentSessionId = null;
     messageSequenceCounter = 0;
 
-    channelName = '/event/Flight_Found__e';
-    subscription = {};
+    awaitingConfirmation = false;
+    stagedFlight = null;
+    lmsSubscription = null;
 
-    @wire(MessageContext)
-    messageContext;
+    activePollingTimeout = null;
+    activeDispatchTimeout = null;
+
+    @wire(MessageContext) messageContext;
+
+    get logoUrl() {
+        if (!this.brandLogoCmsKey) return null;
+        return this.brandLogoCmsKey.includes('/') 
+            ? this.brandLogoCmsKey 
+            : `/sfsites/c/cms/delivery/media/${this.brandLogoCmsKey}`;
+    }
+
+    get dynamicBackgroundStyle() {
+        if (!this.defaultBgImageCmsKey) return 'background-color: #0f172a;';
+        const bgUrl = this.defaultBgImageCmsKey.includes('/') 
+            ? this.defaultBgImageCmsKey 
+            : `/sfsites/c/cms/delivery/media/${this.defaultBgImageCmsKey}`;
+        return `background-image: url('${bgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;`;
+    }
 
     connectedCallback() {
-        this.currentHeroTitle = this.heroGreetingText;
-        this.currentHeroSubtitle = this.heroSubGreetingText;
-        this.activeBackgroundUrl = this.defaultBgImageCmsKey;
-
-        if (!this.agentforceConciergeTitle) {
-            this.agentforceConciergeTitle = 'Where is your next story?';
-        }
-
-        // AEGIS Linter: Delegating initial greeting to Agentforce (Zero-Hardcode Rule)
-        this.initializeDynamicWelcome();
-        this.handleSubscribe();
-        this.registerErrorListener();
-    }
-
-    /**
-     * Imperative silent invocation to Apex Broker to fetch LLM-generated greeting.
-     */
-    initializeDynamicWelcome() {
-        this.isLoading = true;
-        this.messageSequenceCounter++;
-        
-        // Render a temporary typing indicator while the LLM computes the greeting
-        this.chatMessages = [
-            {
-                id: this.messageSequenceCounter,
-                text: '...', 
-                isAgent: true,
-                computedClass: 'bubble-agent typing-indicator'
-            }
-        ];
-
-        // Silent backend trigger using a clean payload contract
-        sendMessageToAgent({
-            userMessage: 'HELLO_AGENTFORCE_SYSTEM_INIT', 
-            sessionId: null // Explicitly forced to null to trigger backend session generation
-        })
-        .then(result => {
-            if (result.isSuccess && result.agentSessionId) {
-                this.currentSessionId = result.agentSessionId;
-            }
-
-            // Replace typing indicator with the dynamic LLM narrative
-            this.chatMessages = [
-                {
-                    id: this.messageSequenceCounter,
-                    text: result.responseText,
-                    isAgent: true,
-                    computedClass: result.isSuccess ? 'bubble-agent' : 'bubble-error font-semibold'
-                }
-            ];
-        })
-        .catch(error => {
-            console.error('AEGIS Dynamic Welcome Error:', error);
-            this.chatMessages = [
-                {
-                    id: this.messageSequenceCounter,
-                    text: 'System processing error. Unable to connect to the travel network.',
-                    isAgent: true,
-                    computedClass: 'bubble-error font-semibold'
-                }
-            ];
-        })
-        .finally(() => {
-            this.isLoading = false;
-        });
-    }
-
-    resolveCmsUrl(contentKey) {
-        if (!contentKey) return null;
-        if (contentKey.includes('/')) {
-            if (contentKey.startsWith('/cms')) {
-                const base = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
-                return `${base}${contentKey}`;
-            }
-            return contentKey;
-        }
-        const base = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
-        return `${base}/sfsites/c/cms/delivery/media/${contentKey}`;
-    }
-
-    get backgroundStyle() {
-        const bgKey = this.activeBackgroundUrl || this.defaultBgImageCmsKey;
-        const resolvedUrl = this.resolveCmsUrl(bgKey);
-        if (resolvedUrl) {
-            return `background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.7)), url('${resolvedUrl}');`;
-        }
-        return undefined; 
-    }
-
-    get resolvedBrandLogoUrl() {
-        return this.resolveCmsUrl(this.brandLogoCmsKey);
-    }
-
-    handleInputChange(event) {
-        this.userInput = event.target.value;
-    }
-
-    handleInputKeyUp(event) {
-        if (event.key === 'Enter' && this.userInput.trim().length > 0 && !this.isLoading) {
-            this.processUserMessageSubmission();
-        }
-    }
-
-    processUserMessageSubmission() {
-        if (this.userInput.trim().length === 0 || this.isLoading) return;
-        const textPayload = this.userInput.trim();
-        this.userInput = ''; 
-        this.executeAgentforceServerCall(textPayload);
-    }
-
-    executeAgentforceServerCall(userNarrative) {
-        this.isLoading = true;
-
-        this.messageSequenceCounter++;
-        this.chatMessages = [...this.chatMessages, {
-            id: this.messageSequenceCounter,
-            text: userNarrative,
-            isAgent: false,
-            computedClass: 'bubble-user'
-        }];
-
-        sendMessageToAgent({
-            userMessage: userNarrative,
-            sessionId: this.currentSessionId
-        })
-        .then(result => {
-            if (result.isSuccess && result.agentSessionId) {
-                this.currentSessionId = result.agentSessionId; 
-            }
-
-            this.messageSequenceCounter++;
-            this.chatMessages = [...this.chatMessages, {
-                id: this.messageSequenceCounter,
-                text: result.responseText,
-                isAgent: true,
-                computedClass: result.isSuccess ? 'bubble-agent' : 'bubble-error font-semibold'
-            }];
-        })
-        .catch(() => {
-            this.messageSequenceCounter++;
-            this.chatMessages = [...this.chatMessages, {
-                id: this.messageSequenceCounter,
-                text: 'System processing error. Connection with the travel network timed out.',
-                isAgent: true,
-                computedClass: 'bubble-error font-semibold'
-            }];
-        })
-        .finally(() => {
-            this.isLoading = false;
-        });
-    }
-
-    handleSubscribe() {
-        const messageCallback = (response) => {
-            const payload = response.data.payload;
-            if (payload.Session_Id__c === this.currentSessionId) {
-                this.selectedDestinationCode = payload.Destination_Code__c;
-                this.activeFlightRecordId = payload.Flight_Id__c;
-                
-                if (payload.CMS_Content_Key__c) {
-                    this.activeBackgroundUrl = payload.CMS_Content_Key__c;
-                }
-                
-                this.currentHeroTitle = `Journey to ${this.selectedDestinationCode}`;
-                this.currentHeroSubtitle = 'Your AI Concierge has prepared your itinerary.';
-                this.showFlightCard = true;
-                this.broadcastFlightRecommendation();
-            }
-        };
-
-        subscribe(this.channelName, -1, messageCallback).then((response) => {
-            this.subscription = response;
-        });
-    }
-
-    broadcastFlightRecommendation() {
-        publish(this.messageContext, shaFlightChannel, {
-            flightId: this.activeFlightRecordId,
-            destinationCode: this.selectedDestinationCode,
-            interactionState: 'RECOMMENDED'
-        });
-    }
-
-    registerErrorListener() {
-        onError((error) => {
-            console.error('A.E.G.I.S. EMP API Event Connection Error: ', JSON.stringify(error));
-        });
-    }
-
-    closeFlightCard() {
-        this.showFlightCard = false;
-        this.currentHeroTitle = this.heroGreetingText;
-        this.currentHeroSubtitle = this.heroSubGreetingText;
-        this.activeBackgroundUrl = this.defaultBgImageCmsKey;
-        
-        // AEGIS Linter: Resetting session and re-fetching dynamic greeting
-        this.currentSessionId = null;
-        this.initializeDynamicWelcome();
-        
-        publish(this.messageContext, shaFlightChannel, { interactionState: 'CLOSED' });
-    }
-
-    /**
-     * Auth Gate Evaluator: Intercepts seat picker selection requests.
-     * Redirects Guest Users to the Experience Cloud login page while saving search state.
-     */
-    proceedToSeatPicker() {
-        if (isGuestUser) {
-            const pendingContext = {
-                flightId: this.activeFlightRecordId,
-                destinationCode: this.selectedDestinationCode
-            };
-            sessionStorage.setItem('skyhigh_pending_booking', JSON.stringify(pendingContext));
-
-            const base = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
-            window.location.href = `${base}/s/login`;
-            return;
-        }
-
-        publish(this.messageContext, shaFlightChannel, {
-            flightId: this.activeFlightRecordId,
-            destinationCode: this.selectedDestinationCode,
-            interactionState: 'SHOW_SEATS'
-        });
+        this.subscribeToChannel();
+        this.initializeAgentSession('INIT_SESSION_GREETING');
     }
 
     disconnectedCallback() {
-        unsubscribe(this.subscription, () => {});
+        this.clearAllPendingTimers();
+        this.unsubscribeFromChannel();
     }
 
-    get isSendButtonDisabled() {
-        return this.userInput.trim().length === 0 || this.isLoading;
+    subscribeToChannel() {
+        if (!this.lmsSubscription) {
+            this.lmsSubscription = subscribe(
+                this.messageContext,
+                SHA_FLIGHT_CHANNEL,
+                (message) => this.handleLmsMessage(message),
+                { scope: APPLICATION_SCOPE }
+            );
+        }
+    }
+
+    unsubscribeFromChannel() {
+        if (this.lmsSubscription) {
+            unsubscribe(this.lmsSubscription);
+            this.lmsSubscription = null;
+        }
+    }
+
+    handleLmsMessage(message) {
+        if (message && message.interactionState === 'DISMISSED') {
+            this.stagedFlight = null;
+            this.awaitingConfirmation = false;
+            this.restoreInputFocus();
+        }
+    }
+
+    initializeAgentSession(systemContext) {
+        this.isLoading = true;
+        this.scrollToBottom();
+
+        sendMessageToAgent({ userMessage: systemContext, sessionId: this.currentSessionId })
+        .then(result => {
+            if (result && result.isSuccess && result.agentSessionId) {
+                this.currentSessionId = result.agentSessionId;
+            }
+
+            const responseText = result?.responseText || '';
+            this.appendMessage(responseText, true, result?.isSuccess);
+        })
+        .catch(() => {
+            this.appendMessage('System communication interruption during initialization.', true, false);
+        })
+        .finally(() => {
+            this.isLoading = false;
+            this.scrollToBottom();
+            this.restoreInputFocus();
+        });
+    }
+
+    handleKeyDown(event) {
+        if (event.key === 'Enter' && event.target.value.trim()) {
+            const userMsg = event.target.value.trim();
+            event.target.value = '';
+            this.executeAgentforceServerCall(userMsg);
+        }
+    }
+
+    handleSendMessage() {
+        const inputEl = this.template.querySelector('.chat-input');
+        if (inputEl && inputEl.value.trim()) {
+            const userMsg = inputEl.value.trim();
+            inputEl.value = '';
+            this.executeAgentforceServerCall(userMsg);
+        }
+    }
+
+    executeAgentforceServerCall(userNarrative) {
+        this.clearAllPendingTimers();
+
+        let flightToDispatchAfterRender = null;
+
+        if (this.awaitingConfirmation && this.stagedFlight) {
+            flightToDispatchAfterRender = { ...this.stagedFlight };
+            this.stagedFlight = null;
+            this.awaitingConfirmation = false;
+        }
+
+        this.appendMessage(userNarrative, false, true);
+        this.isLoading = true;
+        this.scrollToBottom();
+
+        sendMessageToAgent({ userMessage: userNarrative, sessionId: this.currentSessionId })
+        .then(result => {
+            if (result && result.isSuccess && result.agentSessionId) {
+                this.currentSessionId = result.agentSessionId;
+            }
+
+            const responseText = result?.responseText || '';
+            this.appendMessage(responseText, true, result?.isSuccess);
+
+            const synchronousFlight = this.extractFlightPayload(result);
+
+            if (synchronousFlight) {
+                this.stagedFlight = synchronousFlight;
+                this.awaitingConfirmation = true;
+            } else if (flightToDispatchAfterRender) {
+                this.dispatchFlightToModal(flightToDispatchAfterRender, 1800);
+            } else if (!this.awaitingConfirmation) {
+                this.initiateRecursivePolling(4);
+            }
+        })
+        .catch(() => {
+            this.appendMessage('System communication interruption. Please retry.', true, false);
+        })
+        .finally(() => {
+            this.isLoading = false;
+            this.scrollToBottom();
+            this.restoreInputFocus();
+        });
+    }
+
+    initiateRecursivePolling(retriesLeft) {
+        if (retriesLeft <= 0 || !this.currentSessionId) return;
+
+        this.activePollingTimeout = setTimeout(() => {
+            pollForFlightEvent({ sessionId: this.currentSessionId })
+            .then(pollResult => {
+                const asyncFlight = this.extractFlightPayload(pollResult);
+                
+                if (asyncFlight) {
+                    this.stagedFlight = asyncFlight;
+                    this.awaitingConfirmation = true;
+                } else {
+                    this.initiateRecursivePolling(retriesLeft - 1);
+                }
+            })
+            .catch(() => {
+                this.initiateRecursivePolling(retriesLeft - 1);
+            });
+        }, 1500);
+    }
+
+    extractFlightPayload(source) {
+        if (!source) return null;
+        
+        const flightId = source.flightId || source.flightSegmentId || null;
+        const isValidId = flightId && typeof flightId === 'string' && (flightId.length === 15 || flightId.length === 18);
+        
+        if (!isValidId) return null;
+
+        return {
+            flightId: flightId,
+            flightNumber: source.flightNumber || '',
+            originCode: source.originCode || '',
+            originCity: source.originCity || '',
+            destinationCode: source.destinationCode || '',
+            destinationCity: source.destinationCity || '',
+            aircraft: source.aircraft || source.aircraftModel || '',
+            departureTime: source.departureTime || '',
+            flightType: source.flightType || 'Direct Flight',
+            seatPreference: source.seatPreference || null
+        };
+    }
+
+    dispatchFlightToModal(flightPayload, bufferDelay = 1800) {
+        if (!flightPayload || !flightPayload.flightId) return;
+
+        const payload = {
+            ...flightPayload,
+            interactionState: 'RECOMMENDED'
+        };
+        
+        this.activeDispatchTimeout = setTimeout(() => {
+            publish(this.messageContext, SHA_FLIGHT_CHANNEL, payload);
+        }, bufferDelay);
+    }
+
+    appendMessage(text, isAgent, isSuccess = true) {
+        this.messageSequenceCounter++;
+        this.chatMessages = [...this.chatMessages, {
+            id: this.messageSequenceCounter,
+            text: text,
+            isAgent: isAgent,
+            computedClass: isAgent 
+                ? (isSuccess ? 'bubble-agent' : 'bubble-error font-semibold')
+                : 'bubble-user'
+        }];
+        this.scrollToBottom();
+    }
+
+    clearAllPendingTimers() {
+        if (this.activePollingTimeout) {
+            clearTimeout(this.activePollingTimeout);
+            this.activePollingTimeout = null;
+        }
+        if (this.activeDispatchTimeout) {
+            clearTimeout(this.activeDispatchTimeout);
+            this.activeDispatchTimeout = null;
+        }
+    }
+
+    scrollToBottom() {
+        window.requestAnimationFrame(() => {
+            const container = this.refs.chatContainer || this.template.querySelector('.chat-messages-container');
+            if (container) {
+                container.scrollTo({
+                    top: container.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }
+        });
+    }
+
+    restoreInputFocus() {
+        window.requestAnimationFrame(() => {
+            const inputEl = this.template.querySelector('.chat-input');
+            if (inputEl) {
+                inputEl.focus();
+            }
+        });
     }
 }

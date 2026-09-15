@@ -1,137 +1,67 @@
 <!--
-    @description Immersive HTML template structure for SkyHigh Airlines Hero Concierge.
-    Completely purged from legacy static suggestion chips to enforce professional AI standards.
-    Bound 100% to Nico's certified corporate CSS glassmorphism layout classes.
-    @author Nico & A.E.G.I.S. Co-Pilot
-    @date July 2026
+  A.E.G.I.S. Component: shaHeroConcierge
+  Clean Conversational Hero Template with Embedded Hardware-Accelerated Typing Indicator
 -->
 <template>
-    <!-- Viewport Controller using your exact class descriptor -->
-    <div class="hero-container" style={backgroundStyle}>
+    <div class="skyhigh-master-wrapper" style={dynamicBackgroundStyle}>
         
-        <!-- Internal width constraint boundary from your CSS -->
-        <div class="hero-content-wrapper">
-            
-            <!-- Header Layout Structure using your CSS classes -->
-            <header class="hero-header">
-                <div class="brand">
-                    <template if:true={resolvedBrandLogoUrl}>
-                        <img src={resolvedBrandLogoUrl} alt="SkyHigh Airlines Logo" class="brand-logo" />
-                    </template>
-                    <template if:false={resolvedBrandLogoUrl}>
-                        <span class="brand-text-fallback">SkyHigh</span>
-                    </template>
+        <!-- Brand Logo -->
+        <div class="skyhigh-logo-container" lwc:if={logoUrl}>
+            <img src={logoUrl} alt="SkyHigh Airlines Logo" class="skyhigh-logo" />
+        </div>
+
+        <div class="skyhigh-hero-container">
+            <!-- Left Region: Hero Narrative -->
+            <div class="skyhigh-left-panel">
+                <div class="skyhigh-hero-text">
+                    <h1 class="skyhigh-headline">{heroGreetingText}</h1>
+                    <p class="skyhigh-subheadline">{heroSubGreetingText}</p>
                 </div>
+            </div>
 
-                <nav class="hero-nav">
-                    <a href="#">{navLabel1}</a>
-                    <a href="#">{navLabel2}</a>
-                    <a href="#">{navLabel3}</a>
-                </nav>
-            </header>
-
-            <!-- Main Interactive Workspace -->
-            <main class="hero-main">
+            <!-- Right Region: Glassmorphism Conversational Panel -->
+            <div class="skyhigh-chat-panel glassmorphism-panel">
+                <div class="chat-header">
+                    <h2>{agentforceConciergeTitle}</h2>
+                </div>
                 
-                <!-- Typography Section -->
-                <div class="hero-text-area">
-                    <h1 class="hero-title">{currentHeroTitle}</h1>
-                    <p class="hero-subtitle">{currentHeroSubtitle}</p>
-                </div>
-
-                <!-- Interface Interaction Section -->
-                <div class="hero-interactive-zone">
-                    
-                    <!-- CONDITION A: Render Professional AI Chat Panel -->
-                    <template if:false={showFlightCard}>
-                        <div class="chat-panel glass-panel">
-                            
-                            <!-- Inspirational Chat Header Invitation -->
-                            <div class="chat-header">
-                                <h3>{agentforceConciergeTitle}</h3>
-                            </div>
-                            
-                            <!-- Cleaned Chat Dynamic History Area mapped to CSS selectors -->
-                            <div class="chat-body">
-                                <div class="chat-history-area">
-                                    <template for:each={chatMessages} for:item="msg">
-                                        <div key={msg.id} class={msg.computedClass}>
-                                            {msg.text}
-                                        </div>
-                                    </template>
-                                    
-                                    <!-- Dynamic bubble loader context layout node -->
-                                    <template if:true={isLoading}>
-                                        <div class="bubble-agent animate-pulse flex gap-1">
-                                            <span>•</span><span>•</span><span>•</span>
-                                        </div>
-                                    </template>
-                                </div>
-
-                                <!-- Input Bar Footer Container - Completely stripped from preset chips buttons -->
-                                <div class="input-glass-container">
-                                    <input 
-                                        type="text" 
-                                        value={userInput}
-                                        disabled={isLoading}
-                                        onchange={handleInputChange}
-                                        onkeyup={handleInputKeyUp}
-                                        placeholder="Tell us what you want to experience..." 
-                                        class="input-glass-field">
-                                    
-                                    <button 
-                                        disabled={isSendButtonDisabled}
-                                        onclick={processUserMessageSubmission}
-                                        class="btn-input-send">
-                                        <span style="font-size: 0.75rem;">➔</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                        </div>
-                    </template>
-
-                    <!-- CONDITION B: Render Flight Card Modal (Agentforce Suggestion view) -->
-                    <template if:true={showFlightCard}>
-                        <div class="modal-card glass-panel">
-                            <div class="modal-header">
-                                <span>{modalTitle}</span>
-                                <span class="badge">Available</span>
-                            </div>
-                            
-                            <div class="modal-body">
-                                <div class="flight-route">
-                                    <p style="font-size: 0.75rem; color: #6b7280; margin: 0; text-transform: uppercase;">From</p>
-                                    <h2>EZE</h2>
-                                    <p style="font-size: 0.75rem; color: #6b7280; margin: 0;">Buenos Aires</p>
-                                </div>
-                                <div style="text-align: center; color: #9ca3af; font-size: 0.75rem;">
-                                    <span>13h 45m</span>
-                                </div>
-                                <div class="flight-route" style="text-align: right;">
-                                    <p style="font-size: 0.75rem; color: #6b7280; margin: 0; text-transform: uppercase;">To</p>
-                                    <h2>{selectedDestinationCode}</h2>
-                                    <p style="font-size: 0.75rem; color: #6b7280; margin: 0;">Destination</p>
-                                </div>
-                            </div>
-
-                            <!-- Autonomous AI Seat Recommendation widget injection zone -->
-                            <div style="margin-bottom: 1.5rem;">
-                                <c-sha-seat-recommendation 
-                                    onseatselection={proceedToSeatPicker}>
-                                </c-sha-seat-recommendation>
-                            </div>
-
-                            <div class="modal-actions">
-                                <button class="btn-secondary" onclick={closeFlightCard}>
-                                    {modalCloseText}
-                                </button>
+                <!-- Chat Conversation Scroll Area -->
+                <div class="chat-messages-container" lwc:ref="chatContainer">
+                    <template for:each={chatMessages} for:item="msg">
+                        <div key={msg.id} class="message-row">
+                            <div class={msg.computedClass}>
+                                <p>{msg.text}</p>
                             </div>
                         </div>
                     </template>
 
+                    <!-- Pulsing Typing Indicator for Agent Processing -->
+                    <template lwc:if={isLoading}>
+                        <div class="message-row agent-typing-row">
+                            <div class="bubble-agent typing-indicator-bubble">
+                                <span class="typing-dot"></span>
+                                <span class="typing-dot"></span>
+                                <span class="typing-dot"></span>
+                            </div>
+                        </div>
+                    </template>
                 </div>
-            </main>
+
+                <!-- Input Controls -->
+                <div class="chat-input-container">
+                    <input 
+                        type="text" 
+                        class="chat-input" 
+                        placeholder="Tell us what you want to experience..." 
+                        value={currentInputText} 
+                        onkeydown={handleKeyDown} 
+                        disabled={isLoading} 
+                    />
+                    <button class="send-btn" onclick={handleSendMessage} disabled={isLoading}>
+                        <span>&#8594;</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </template>

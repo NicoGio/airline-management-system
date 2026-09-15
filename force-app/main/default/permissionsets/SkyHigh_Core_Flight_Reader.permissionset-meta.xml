@@ -1,12 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>SkyHigh Core Flight Reader</label>
+    
+    <!-- Apex Class Accesses -->
     <classAccesses>
         <apexClass>SH_AgentforceBroker</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>SH_BookingController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+
+    <!-- Field-Level Security (FLS) -->
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Airport__c.City__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
         <field>Airport__c.IATA_Code__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Flight__c.Flight_Number__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Flight_Segment__c.Arrival_Time__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Flight_Segment__c.Asset__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Flight_Segment__c.Departure_Time__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -24,8 +59,8 @@
         <field>Flight_Segment__c.Seat_Map_JSON__c</field>
         <readable>true</readable>
     </fieldPermissions>
-    <hasActivationRequired>false</hasActivationRequired>
-    <label>SkyHigh Core Flight Reader</label>
+
+    <!-- Object Read Permissions -->
     <objectPermissions>
         <allowCreate>false</allowCreate>
         <allowDelete>false</allowDelete>
@@ -96,6 +131,8 @@
         <viewAllFields>false</viewAllFields>
         <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
+
+    <!-- Essential Agentforce External Credential Security Binding -->
     <externalCredentialPrincipalAccesses>
         <enabled>true</enabled>
         <externalCredentialPrincipal>Agentforce_API_Gateway-Agentforce_Principal</externalCredentialPrincipal>

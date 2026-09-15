@@ -1,61 +1,79 @@
+<!--
+  A.E.G.I.S. Component: shaSeatRecommendation
+  Tier-1 Airline Boarding Pass (Watermark Background Vector & Pure Reactive Bindings)
+-->
 <template>
-    <div class="concierge-container">
+    <template lwc:if={isPanelActive}>
+        <div class="skyhigh-backdrop" onclick={closePanel}></div>
         
-        <template if:true={isLoading}>
-            <div class="spinner-overlay">
-                <lightning-spinner alternative-text="Agentforce is analyzing..." size="medium" variant="brand"></lightning-spinner>
+        <section role="dialog" tabindex="-1" aria-modal="true" class="skyhigh-card-container">
+            <!-- Header Bar -->
+            <div class="card-top-bar">
+                <div class="airline-brand">
+                    <span class="flight-badge">{badgeLabel}</span>
+                </div>
+                <button class="btn-close-icon" onclick={closePanel} title="Close" aria-label="Close dialog">✕</button>
             </div>
-        </template>
 
-        <template if:true={errorMessage}>
-            <div class="error-banner">{errorMessage}</div>
-        </template>
-
-        <template if:false={isLoading}>
-            <template if:false={recommendedSeat}>
-                <template if:false={errorMessage}>
-                    <div class="error-banner">⚠️ No seats available in JSON.</div>
-                </template>
-            </template>
-        </template>
-
-        <template if:true={recommendedSeat}>
-            <div class="premium-card">
-                
-                <div class="card-header">
-                    <lightning-icon icon-name="utility:magicwand" size="small" class="ai-icon"></lightning-icon>
-                    <span class="ai-title">Agentforce Suggestion</span>
+            <!-- Route Visualization Section with Background Watermark -->
+            <div class="route-container">
+                <!-- Background Aeronautical Watermark (Zero Collision) -->
+                <div class="plane-watermark-bg" aria-hidden="true">
+                    <svg class="plane-watermark-svg" viewBox="0 0 24 24">
+                        <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+                    </svg>
                 </div>
 
-                <div class="flight-context">
-                    <p>Flight {flightInfo.flight} • {flightInfo.aircraft}</p>
+                <div class="airport-node">
+                    <span class="iata-code">{originCode}</span>
+                    <span class="city-name">{originCity}</span>
                 </div>
 
-                <div class="seat-focus">
-                    <h1 class="seat-code">{recommendedSeat.code}</h1>
-                    <p class="seat-tier">{recommendedSeat.tier}</p>
+                <div class="flight-path">
+                    <span class="flight-type">{flightType}</span>
+                    <div class="trajectory-line"></div>
+                    <span class="flight-number">{flightNumber}</span>
                 </div>
 
-                <div class="seat-features">
-                    <template for:each={recommendedSeat.features} for:item="feature">
-                        <span key={feature} class="feature-badge">✓ {feature}</span>
-                    </template>
+                <div class="airport-node destination-node">
+                    <span class="iata-code">{destinationCode}</span>
+                    <span class="city-name">{destinationCity}</span>
                 </div>
+            </div>
 
-                <template if:false={isConfirmed}>
-                    <button class="btn-confirm" onclick={confirmSuggestion}>
-                        Accept Seat {recommendedSeat.code}
-                    </button>
-                </template>
-
-                <template if:true={isConfirmed}>
-                    <div class="success-message">
-                        <lightning-icon icon-name="utility:check" size="small" variant="success"></lightning-icon>
-                        <span>Seat {recommendedSeat.code} Confirmed!</span>
+            <!-- Dynamic Details Grid (Zero Hardcode) -->
+            <div class="details-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Aircraft</span>
+                    <span class="detail-value">{aircraft}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Departure</span>
+                    <span class="detail-value">{departureTime}</span>
+                </div>
+                <template lwc:if={hasSeatPreference}>
+                    <div class="detail-item">
+                        <span class="detail-label">Seat Assignment</span>
+                        <span class="detail-value highlight">{seatPreferenceDisplay}</span>
                     </div>
                 </template>
-
             </div>
-        </template>
-    </div>
+
+            <!-- Affirmation Status Banner -->
+            <div class="ai-status-banner">
+                <span class="status-indicator">●</span>
+                <p class="status-text">{recommendationBannerText}</p>
+            </div>
+
+            <!-- Actions Footer -->
+            <div class="card-footer">
+                <button class="skyhigh-btn skyhigh-btn-ghost" onclick={closePanel}>
+                    Modify in Chat
+                </button>
+                <button class="skyhigh-btn skyhigh-btn-primary" onclick={proceedToBooking}>
+                    Confirm & Proceed to Booking →
+                </button>
+            </div>
+        </section>
+    </template>
 </template>

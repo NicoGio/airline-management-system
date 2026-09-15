@@ -1,124 +1,320 @@
-.concierge-container {
-    display: flex;
-    justify-content: center;
-    /* 👇 Esto evita que Salesforce estire el componente hacia abajo */
-    align-items: flex-start; 
+/*
+ * A.E.G.I.S. Component: shaSeatRecommendation
+ * Tier-1 International Airline Modal (Light Luxury & Zero-Collision Route Geometry)
+ */
+
+:host {
+    display: block;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
-.premium-card {
+/* 1. Backdrop Glassmorphism */
+.skyhigh-backdrop {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 9998;
+    animation: fadeIn 0.25s ease-out forwards;
+}
+
+/* 2. Modal Card Container */
+.skyhigh-card-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 92%;
+    max-width: 540px;
     background: #ffffff;
-    border-radius: 4px; /* Radio nativo de Salesforce */
-    padding: 1.5rem; /* Márgenes más compactos */
-    width: 100%;
-    border: 1px solid #dddbda; /* Borde nativo */
-    box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.1); /* Sombra nativa */
-    text-align: center;
-}
-
-.card-header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    color: #6366f1; 
-    font-weight: 800;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 1rem;
-}
-
-.flight-context {
-    color: #64748b;
-    font-size: 0.85rem;
-    margin-bottom: 1rem;
-    font-weight: 500;
-}
-
-.seat-focus {
-    margin-bottom: 1.5rem;
-}
-
-.seat-code {
-    font-size: 3.5rem; /* Achicamos de 4.5 a 3.5 */
-    font-weight: 800;
+    border-radius: 20px;
+    box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(15, 23, 42, 0.05);
+    z-index: 9999;
+    overflow: hidden;
     color: #0f172a;
-    line-height: 1;
-    margin: 0;
+    animation: popUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.seat-tier {
-    font-size: 1rem;
-    color: #d97706; 
+/* 3. Card Header Bar */
+.card-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem 0.5rem 1.5rem;
+}
+
+.flight-badge {
+    background: #f0f7ff;
+    color: #0284c7;
+    font-size: 0.7rem;
     font-weight: 700;
-    margin-top: 0.25rem;
+    letter-spacing: 0.06em;
+    padding: 0.3rem 0.75rem;
+    border-radius: 9999px;
+    border: 1px solid #bae6fd;
+    line-height: 1.2;
 }
 
-.seat-features {
+.btn-close-icon {
+    background: transparent;
+    border: none;
+    font-size: 1.25rem;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+    transition: color 0.15s ease;
+}
+
+.btn-close-icon:hover {
+    color: #334155;
+}
+
+/* 4. Route Track & Collision-Free Trajectory */
+.route-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.75rem;
+    background: #f8fafc;
+    margin: 0.75rem 1.5rem;
+    border-radius: 14px;
+    border: 1px solid #f1f5f9;
+}
+
+.airport-node {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 1.5rem;
-    align-items: center;
+    min-width: 80px;
 }
 
-.feature-badge {
-    background-color: #f8fafc;
-    border: 1px solid #e2e8f0;
-    color: #475569;
-    padding: 6px 12px;
-    border-radius: 16px;
+.airport-node.destination-node,
+.airport-node:last-child {
+    text-align: right;
+    align-items: flex-end;
+}
+
+.iata-code {
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    line-height: 1;
+}
+
+.city-name {
     font-size: 0.8rem;
-    font-weight: 600;
-    width: 85%;
-    text-align: center;
+    color: #64748b;
+    font-weight: 500;
+    margin-top: 0.35rem;
+    line-height: 1;
 }
 
-.btn-confirm {
+/* Central Vector Engine: Total Physical Separation */
+.flight-path {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 0 1.25rem;
+    min-height: 72px;
+}
+
+.flight-type {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: #94a3b8;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin: 0 0 10px 0;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* 24px explicit height box to eliminate line-plane collapse */
+.path-line,
+.path-visual-track {
+    position: relative;
     width: 100%;
-    background-color: #0ea5e9; 
-    color: white;
-    border: none;
-    padding: 0.85rem;
-    border-radius: 4px; /* Botón más cuadrado, estilo Salesforce */
-    font-size: 1rem;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    background: transparent;
+}
+
+/* Centered grey baseline track */
+.path-line::before,
+.path-visual-track::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 2px;
+    background: #cbd5e1;
+    z-index: 1;
+}
+
+/* Plane Mask & Centering */
+.plane-icon,
+.plane-badge {
+    position: relative;
+    z-index: 2;
+    background: #f8fafc;
+    color: #0284c7;
+    font-size: 0.93rem;
+    line-height: 1;
+    padding: 0 8px;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(90deg);
+}
+
+.flight-number {
+    font-size: 0.75rem;
     font-weight: 700;
+    color: #0284c7;
+    margin: 10px 0 0 0;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* 5. Dynamic Details Grid */
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.75rem;
+    padding: 0 1.5rem;
+    margin-top: 0.75rem;
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.detail-label {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    line-height: 1.2;
+}
+
+.detail-value {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-top: 0.35rem;
+    line-height: 1.2;
+}
+
+.detail-value.highlight {
+    color: #059669;
+}
+
+/* 6. Affirmation Banner */
+.ai-status-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1rem 1.5rem;
+    padding: 0.75rem 1rem;
+    background: #f0fdf4;
+    border-radius: 12px;
+    border: 1px solid #dcfce7;
+}
+
+.status-indicator {
+    color: #16a34a;
+    font-size: 0.75rem;
+    line-height: 1;
+}
+
+.status-text {
+    font-size: 0.75rem;
+    color: #15803d;
+    margin: 0;
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+/* 7. Action Footer */
+.card-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    background: #f8fafc;
+    border-top: 1px solid #f1f5f9;
+}
+
+.skyhigh-btn {
+    padding: 0.7rem 1.25rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
+    border: none;
+    outline: none;
+    line-height: 1.2;
 }
 
-.btn-confirm:hover {
-    background-color: #0284c7;
+.skyhigh-btn-ghost {
+    background: #ffffff;
+    color: #475569;
+    border: 1px solid #cbd5e1;
 }
 
-.success-message {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    color: #10b981;
-    font-weight: 700;
-    font-size: 1rem;
-    padding: 1rem;
-    background-color: #ecfdf5;
-    border-radius: 4px;
-    border: 1px solid #a7f3d0;
+.skyhigh-btn-ghost:hover {
+    background: #f1f5f9;
+    color: #0f172a;
 }
 
-.error-banner {
-    background-color: #fee2e2;
-    color: #b91c1c;
-    padding: 1rem;
-    border-radius: 4px;
-    margin-bottom: 1rem;
-    font-weight: bold;
-    text-align: center;
+.skyhigh-btn-primary {
+    background: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
 }
 
-.spinner-overlay {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 150px;
+.skyhigh-btn-primary:hover {
+    background: #0369a1;
+    box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
+}
+
+/* 8. Micro-Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes popUp {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -46%) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
 }
